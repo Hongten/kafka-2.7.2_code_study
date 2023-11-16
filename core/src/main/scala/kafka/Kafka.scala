@@ -29,6 +29,7 @@ import scala.jdk.CollectionConverters._
 
 object Kafka extends Logging {
 
+  // TODO: 加载参数 ，返回一个Properties对象<key, value>
   def getPropsFromArgs(args: Array[String]): Properties = {
     val optionParser = new OptionParser(false)
     val overrideOpt = optionParser.accepts("override", "Optional property that should override values set in server.properties file")
@@ -44,10 +45,12 @@ object Kafka extends Logging {
       CommandLineUtils.printUsageAndDie(optionParser, "USAGE: java [options] %s server.properties [--override property=value]*".format(classOf[KafkaServer].getSimpleName()))
     }
 
+    // TODO: 打印版本并退出
     if (args.contains("--version")) {
       CommandLineUtils.printVersionAndDie()
     }
 
+    // TODO: 参考启动命名 bin/kafka-server-start.sh conf/server.properties, 这里是加载配置文件 conf/server.properties
     val props = Utils.loadProps(args(0))
 
     if (args.length > 1) {
@@ -59,12 +62,15 @@ object Kafka extends Logging {
 
       props ++= CommandLineUtils.parseKeyValueArgs(options.valuesOf(overrideOpt).asScala)
     }
+    // TODO: 最后返回 properties对象
     props
   }
 
   def main(args: Array[String]): Unit = {
     try {
+      // TODO: 加载配置文件
       val serverProps = getPropsFromArgs(args)
+      // TODO:  这里会创建 KafkaServer 对象，通过 kafkaServerStartable 来控制 KafkaServer 的启动，关闭，状态设置
       val kafkaServerStartable = KafkaServerStartable.fromProps(serverProps)
 
       try {
@@ -76,10 +82,13 @@ object Kafka extends Logging {
             s"by a signal. Reason for registration failure is: $e", e)
       }
 
+      // TODO: 添加KafkaServer 关闭的钩子
       // attach shutdown handler to catch terminating signals as well as normal termination
       Exit.addShutdownHook("kafka-shutdown-hook", kafkaServerStartable.shutdown())
 
+      // TODO: 启动 KafkaServer，初始化KafkaServer里面的各个组件
       kafkaServerStartable.startup()
+      // TODO: 等待KafkaServer关闭，这里的原理是使用了 CountDownLatch(1)来进行判断的。初始值为1，直到这个值为0或该线程被中断退出
       kafkaServerStartable.awaitShutdown()
     }
     catch {

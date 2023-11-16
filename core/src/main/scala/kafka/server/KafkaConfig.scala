@@ -340,6 +340,7 @@ object KafkaConfig {
 
   /** ********* General Configuration ***********/
   val BrokerIdGenerationEnableProp = "broker.id.generation.enable"
+  // TODO: reserved.broker.max.id=1000 默认值
   val MaxReservedBrokerIdProp = "reserved.broker.max.id"
   val BrokerIdProp = "broker.id"
   val MessageMaxBytesProp = "message.max.bytes"

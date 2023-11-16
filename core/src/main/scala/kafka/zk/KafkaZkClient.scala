@@ -1479,10 +1479,11 @@ class KafkaZkClient private[zk] (zooKeeperClient: ZooKeeperClient, isSecure: Boo
     * @return optional cluster id in String.
     */
   def getClusterId: Option[String] = {
+    // TODO: {"version":"1","id":"3bjYkEdwQ7WLZZue8vBorw"}
     val getDataRequest = GetDataRequest(ClusterIdZNode.path)
     val getDataResponse = retryRequestUntilConnected(getDataRequest)
     getDataResponse.resultCode match {
-      case Code.OK => Some(ClusterIdZNode.fromJson(getDataResponse.data))
+      case Code.OK => Some(ClusterIdZNode.fromJson(getDataResponse.data)) // 3bjYkEdwQ7WLZZue8vBorw
       case Code.NONODE => None
       case _ => throw getDataResponse.resultException.get
     }
@@ -1519,6 +1520,7 @@ class KafkaZkClient private[zk] (zooKeeperClient: ZooKeeperClient, isSecure: Boo
     */
   def createOrGetClusterId(proposedClusterId: String): String = {
     try {
+      // TODO: 写到 /cluster/id/{"version":"1","id":"3bjYkEdwQ7WLZZue8vBorw"}
       createRecursive(ClusterIdZNode.path, ClusterIdZNode.toJson(proposedClusterId))
       proposedClusterId
     } catch {
@@ -1557,6 +1559,7 @@ class KafkaZkClient private[zk] (zooKeeperClient: ZooKeeperClient, isSecure: Boo
     * @param path
     */
   def makeSurePersistentPathExists(path: String): Unit = {
+    // TODO: 递归创建给定的目录
     createRecursive(path, data = null, throwIfPathExists = false)
   }
 
@@ -1626,8 +1629,10 @@ class KafkaZkClient private[zk] (zooKeeperClient: ZooKeeperClient, isSecure: Boo
     }
   }
 
+  // TODO: 递归创建目录
   private[kafka] def createRecursive(path: String, data: Array[Byte] = null, throwIfPathExists: Boolean = true) = {
 
+    // TODO: 获取父目录
     def parentPath(path: String): String = {
       val indexOfLastSlash = path.lastIndexOf("/")
       if (indexOfLastSlash == -1) throw new IllegalArgumentException(s"Invalid path ${path}")
@@ -1648,13 +1653,17 @@ class KafkaZkClient private[zk] (zooKeeperClient: ZooKeeperClient, isSecure: Boo
       }
     }
 
+    // TODO: 构建CreateRequest 实例， e.g. /brokers/ids
     val createRequest = CreateRequest(path, data, defaultAcls(path), CreateMode.PERSISTENT)
+    // TODO: 在zk上面创建对一个的path
     var createResponse = retryRequestUntilConnected(createRequest)
 
     if (throwIfPathExists && createResponse.resultCode == Code.NODEEXISTS) {
       createResponse.maybeThrow()
     } else if (createResponse.resultCode == Code.NONODE) {
+      // TODO: 创建父目录 /brokers
       createRecursive0(parentPath(path))
+      // TODO: 创建 /brokers/ids
       createResponse = retryRequestUntilConnected(createRequest)
       if (throwIfPathExists || createResponse.resultCode != Code.NODEEXISTS)
         createResponse.maybeThrow()
@@ -1707,9 +1716,12 @@ class KafkaZkClient private[zk] (zooKeeperClient: ZooKeeperClient, isSecure: Boo
   }
 
   private def retryRequestsUntilConnected[Req <: AsyncRequest](requests: Seq[Req]): Seq[Req#Response] = {
+    // TODO: 所有的request请求
     val remainingRequests = new mutable.ArrayBuffer(requests.size) ++= requests
+    // TODO: zk的应答
     val responses = new mutable.ArrayBuffer[Req#Response]
     while (remainingRequests.nonEmpty) {
+      // TODO: zk客户端处理请求
       val batchResponses = zooKeeperClient.handleRequests(remainingRequests)
 
       batchResponses.foreach(response => latencyMetric.update(response.metadata.responseTimeMs))
@@ -1877,8 +1889,10 @@ object KafkaZkClient {
             metricType: String = "SessionExpireListener",
             name: Option[String] = None,
             zkClientConfig: Option[ZKClientConfig] = None) = {
+    // TODO: 创建  ZooKeeperClient 实例
     val zooKeeperClient = new ZooKeeperClient(connectString, sessionTimeoutMs, connectionTimeoutMs, maxInFlightRequests,
       time, metricGroup, metricType, name, zkClientConfig)
+    // TODO: 创建KafkaZkClient 实例
     new KafkaZkClient(zooKeeperClient, isSecure, time)
   }
 

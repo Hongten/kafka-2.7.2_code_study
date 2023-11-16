@@ -26,20 +26,25 @@ import scala.collection.Seq
 
 object KafkaServerStartable {
   def fromProps(serverProps: Properties): KafkaServerStartable = {
+    // TODO: 没有设置 线程名前缀 threadNamePrefix
     fromProps(serverProps, None)
   }
 
   def fromProps(serverProps: Properties, threadNamePrefix: Option[String]): KafkaServerStartable = {
     val reporters = KafkaMetricsReporter.startReporters(new VerifiableProperties(serverProps))
+    // TODO:  创建 KafkaServerStartable实例
     new KafkaServerStartable(KafkaConfig.fromProps(serverProps, false), reporters, threadNamePrefix)
   }
 }
 
 class KafkaServerStartable(val staticServerConfig: KafkaConfig, reporters: Seq[KafkaMetricsReporter], threadNamePrefix: Option[String] = None) extends Logging {
+  // TODO: 创建一个 KafkaServer 实例
   private val server = new KafkaServer(staticServerConfig, kafkaMetricsReporters = reporters, threadNamePrefix = threadNamePrefix)
 
+  // TODO:  KafkaServerStartable类的构造器，即 new KafkaServerStartable(KafkaConfig.fromProps(serverProps, false)) = KafkaServerStartable(serverConfig, Seq.empty, None)
   def this(serverConfig: KafkaConfig) = this(serverConfig, Seq.empty)
 
+  // TODO: 控制 server启动
   def startup(): Unit = {
     try server.startup()
     catch {
@@ -50,6 +55,7 @@ class KafkaServerStartable(val staticServerConfig: KafkaConfig, reporters: Seq[K
     }
   }
 
+  // TODO: 控制server的关闭
   def shutdown(): Unit = {
     try server.shutdown()
     catch {
@@ -60,11 +66,13 @@ class KafkaServerStartable(val staticServerConfig: KafkaConfig, reporters: Seq[K
     }
   }
 
+  // TODO: 控制server的状态设置
   /**
    * Allow setting broker state from the startable.
    * This is needed when a custom kafka server startable want to emit new states that it introduces.
    */
   def setServerState(newState: Byte): Unit = {
+    // TODO:  brokerState 为broker的状态
     server.brokerState.newState(newState)
   }
 

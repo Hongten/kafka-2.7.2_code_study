@@ -121,10 +121,14 @@ object KafkaServer {
  * Represents the lifecycle of a single Kafka broker. Handles all functionality required
  * to start up and shutdown a single Kafka node.
  */
+// TODO:  KafkaServer 构造器， time=默认为系统时间
 class KafkaServer(val config: KafkaConfig, time: Time = Time.SYSTEM, threadNamePrefix: Option[String] = None,
                   kafkaMetricsReporters: Seq[KafkaMetricsReporter] = List()) extends Logging with KafkaMetricsGroup {
+  // TODO: 是否启动完成
   private val startupComplete = new AtomicBoolean(false)
+  // TODO: 是否停止标志
   private val isShuttingDown = new AtomicBoolean(false)
+  // TODO: 是否启动标志
   private val isStartingUp = new AtomicBoolean(false)
 
   private var shutdownLatch = new CountDownLatch(1)
@@ -135,18 +139,23 @@ class KafkaServer(val config: KafkaConfig, time: Time = Time.SYSTEM, threadNameP
   private val KAFKA_BROKER_ID: String = "kafka.broker.id"
 
 
+  // TODO: 日志对象
   private var logContext: LogContext = null
 
+  // TODO: metrics 实例
   var kafkaYammerMetrics: KafkaYammerMetrics = null
   var metrics: Metrics = null
 
+  // TODO: broker server的状态实例
   val brokerState: BrokerState = new BrokerState
 
+  // TODO: 数据和control 请求处理器
   var dataPlaneRequestProcessor: KafkaApis = null
   var controlPlaneRequestProcessor: KafkaApis = null
 
   var authorizer: Option[Authorizer] = None
   var socketServer: SocketServer = null
+  // TODO:  数据和control 请求处理 pool
   var dataPlaneRequestHandlerPool: KafkaRequestHandlerPool = null
   var controlPlaneRequestHandlerPool: KafkaRequestHandlerPool = null
 
@@ -157,15 +166,19 @@ class KafkaServer(val config: KafkaConfig, time: Time = Time.SYSTEM, threadNameP
   var adminManager: AdminManager = null
   var tokenManager: DelegationTokenManager = null
 
+  // TODO: 动态配置
   var dynamicConfigHandlers: Map[String, ConfigHandler] = null
   var dynamicConfigManager: DynamicConfigManager = null
   var credentialProvider: CredentialProvider = null
   var tokenCache: DelegationTokenCache = null
 
+  // TODO: 消费协调者
   var groupCoordinator: GroupCoordinator = null
 
+  // TODO: 事务协调者
   var transactionCoordinator: TransactionCoordinator = null
 
+  // TODO: controller
   var kafkaController: KafkaController = null
 
   var brokerToControllerChannelManager: BrokerToControllerChannelManager = null
@@ -173,18 +186,30 @@ class KafkaServer(val config: KafkaConfig, time: Time = Time.SYSTEM, threadNameP
   var kafkaScheduler: KafkaScheduler = null
 
   var metadataCache: MetadataCache = null
+  // TODO: quota
   var quotaManagers: QuotaFactory.QuotaManagers = null
 
+  // TODO: zookeeper配置和客户端 , server.properties中 zookeeper.connect， zookeeper.connection.timeout.ms 配置信息
   val zkClientConfig: ZKClientConfig = KafkaServer.zkClientConfigFromKafkaConfig(config).getOrElse(new ZKClientConfig())
   private var _zkClient: KafkaZkClient = null
 
   val correlationId: AtomicInteger = new AtomicInteger(0)
+  // TODO: broker的元数据信息， 每个磁盘都需要有这样的信息
+  // cat meta.properties
+  //  #
+  //  #Sat Sep 23 13:04:14 SGT 2023
+  //  broker.id=1009
+  //  version=0
+  //  cluster.id=BIbPq3azQnSIjx2QURxtBA
+  //
   val brokerMetaPropsFile = "meta.properties"
   val brokerMetadataCheckpoints = config.logDirs.map(logDir => (logDir, new BrokerMetadataCheckpoint(new File(logDir + File.separator + brokerMetaPropsFile)))).toMap
 
+  // TODO: cluster.id=BIbPq3azQnSIjx2QURxtBA
   private var _clusterId: String = null
   private var _brokerTopicStats: BrokerTopicStats = null
 
+  // TODO: 监听器
   private var _featureChangeListener: FinalizedFeatureChangeListener = null
 
   val brokerFeatures: BrokerFeatures = BrokerFeatures.createDefault()
@@ -200,6 +225,7 @@ class KafkaServer(val config: KafkaConfig, time: Time = Time.SYSTEM, threadNameP
 
   private[kafka] def featureChangeListener = _featureChangeListener
 
+  // TODO: broker的状态
   newGauge("BrokerState", () => brokerState.currentState)
   newGauge("ClusterId", () => clusterId)
   newGauge("yammer-metrics-count", () =>  KafkaYammerMetrics.defaultRegistry.allMetrics.size)
@@ -211,6 +237,7 @@ class KafkaServer(val config: KafkaConfig, time: Time = Time.SYSTEM, threadNameP
     newGauge("linux-disk-write-bytes", () => linuxIoMetricsCollector.writeBytes())
   }
 
+  // TODO: broker启动，初始化各个组件
   /**
    * Start up API for bringing up a single instance of the Kafka server.
    * Instantiates the LogManager, the SocketServer and the request handlers - KafkaRequestHandlers
@@ -225,10 +252,12 @@ class KafkaServer(val config: KafkaConfig, time: Time = Time.SYSTEM, threadNameP
       if (startupComplete.get)
         return
 
+      // TODO: 设置broker状态为 Starting ，表明broker开始启动
       val canStartup = isStartingUp.compareAndSet(false, true)
       if (canStartup) {
         brokerState.newState(Starting)
 
+        // TODO: 初始化zk客户端 time=系统默认时间， 创建zk客户端，并且创建 broker在zk上面从存放元数据的目录
         /* setup zookeeper */
         initZkClient(time)
 
@@ -238,8 +267,10 @@ class KafkaServer(val config: KafkaConfig, time: Time = Time.SYSTEM, threadNameP
           _featureChangeListener.initOrThrow(config.zkConnectionTimeoutMs)
         }
 
+        // TODO: 获取或生成 clusterId
         /* Get or create cluster_id */
         _clusterId = getOrGenerateClusterId(zkClient)
+        // TODO:  cluster.id=BIbPq3azQnSIjx2QURxtBA
         info(s"Cluster ID = $clusterId")
 
         /* load metadata */
@@ -434,19 +465,28 @@ class KafkaServer(val config: KafkaConfig, time: Time = Time.SYSTEM, threadNameP
   }
 
   private def initZkClient(time: Time): Unit = {
+    // TODO: zookeeper.connect=zk-node:2131,zk-node1:2131,zk-node2:2131/kafka01
     info(s"Connecting to zookeeper on ${config.zkConnect}")
 
     def createZkClient(zkConnect: String, isSecure: Boolean) = {
+      // TODO: 创建 KafkaZkClient 实例
+      //  zkSessionTimeoutMs=18000
+      //  zkConnectionTimeoutMs=18000
+      //  zkMaxInFlightRequests=10
       KafkaZkClient(zkConnect, isSecure, config.zkSessionTimeoutMs, config.zkConnectionTimeoutMs,
         config.zkMaxInFlightRequests, time, name = Some("Kafka server"), zkClientConfig = Some(zkClientConfig))
     }
 
+    // TODO: 判断zk信息中是否有 '/'
     val chrootIndex = config.zkConnect.indexOf("/")
     val chrootOption = {
+      // TODO: 配置了 '/', /kafka01
       if (chrootIndex > 0) Some(config.zkConnect.substring(chrootIndex))
+      // TODO: 如果是配置 zk-node:2131,zk-node1:2131,zk-node2:2131，没有 '/' 就会以zk的根目录进行创建kafka的zk节点信息
       else None
     }
 
+    // TODO: 是否配置了zk认证 
     val secureAclsEnabled = config.zkEnableSecureAcls
     val isZkSecurityEnabled = JaasUtils.isZkSaslEnabled() || KafkaConfig.zkTlsClientAuthEnabled(zkClientConfig)
 
@@ -454,20 +494,28 @@ class KafkaServer(val config: KafkaConfig, time: Time = Time.SYSTEM, threadNameP
       throw new java.lang.SecurityException(s"${KafkaConfig.ZkEnableSecureAclsProp} is true, but ZooKeeper client TLS configuration identifying at least $KafkaConfig.ZkSslClientEnableProp, $KafkaConfig.ZkClientCnxnSocketProp, and $KafkaConfig.ZkSslKeyStoreLocationProp was not present and the " +
         s"verification of the JAAS login file failed ${JaasUtils.zkSecuritySysConfigString}")
 
+    // TODO: chrootOption=zk-node:2131,zk-node1:2131,zk-node2:2131 
     // make sure chroot path exists
-    chrootOption.foreach { chroot =>
+    chrootOption.foreach { chroot => //     chroot=/kafka01
+      // TODO: zk-node:2131,zk-node1:2131,zk-node2:2131 
       val zkConnForChrootCreation = config.zkConnect.substring(0, chrootIndex)
+      // TODO: 创建zk客户端 
       val zkClient = createZkClient(zkConnForChrootCreation, secureAclsEnabled)
+      // TODO: 创建 /kafka01 目录 
       zkClient.makeSurePersistentPathExists(chroot)
       info(s"Created zookeeper path $chroot")
+      // TODO: 关闭zk客户端，这里的主要功能是检查1. 能够连接到zk，2. 检查chroot 路径是否存在
       zkClient.close()
     }
 
+    // TODO: 创建真正的zk客户端
     _zkClient = createZkClient(config.zkConnect, secureAclsEnabled)
+    // TODO: 递归创建zk上面的存元数据的目录
     _zkClient.createTopLevelPaths()
   }
 
   private def getOrGenerateClusterId(zkClient: KafkaZkClient): String = {
+    // TODO:  3bjYkEdwQ7WLZZue8vBorw
     zkClient.getClusterId.getOrElse(zkClient.createOrGetClusterId(CoreUtils.generateUuidAsBase64()))
   }
 
@@ -666,6 +714,7 @@ class KafkaServer(val config: KafkaConfig, time: Time = Time.SYSTEM, threadNameP
     try {
       info("shutting down")
 
+      // TODO:  broker在调用 startUp()方法时，会设置 isStartingUp.compareAndSet(false, true)，即在broker没有起来就去关闭，是非法的
       if (isStartingUp.get)
         throw new IllegalStateException("Kafka server is still starting up, cannot shut down!")
 
@@ -673,6 +722,7 @@ class KafkaServer(val config: KafkaConfig, time: Time = Time.SYSTEM, threadNameP
       // last in the `if` block. If the order is reversed, we could shutdown twice or leave `isShuttingDown` set to
       // `true` at the end of this method.
       if (shutdownLatch.getCount > 0 && isShuttingDown.compareAndSet(false, true)) {
+        // TODO: 对所有没有关闭的组件进行关闭
         CoreUtils.swallow(controlledShutdown(), this)
         brokerState.newState(BrokerShuttingDown)
 
@@ -742,6 +792,7 @@ class KafkaServer(val config: KafkaConfig, time: Time = Time.SYSTEM, threadNameP
 
         brokerState.newState(NotRunning)
 
+        // TODO: 恢复到为启动状态
         startupComplete.set(false)
         isShuttingDown.set(false)
         CoreUtils.swallow(AppInfoParser.unregisterAppInfo(metricsPrefix, config.brokerId.toString, metrics), this)

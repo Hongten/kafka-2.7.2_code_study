@@ -278,6 +278,7 @@ object CoreUtils {
   }
 
   def generateUuidAsBase64(): String = {
+    // TODO: 3bjYkEdwQ7WLZZue8vBorw 
     val uuid = UUID.randomUUID()
     Base64.getUrlEncoder.withoutPadding.encodeToString(getBytesFromUuid(uuid))
   }

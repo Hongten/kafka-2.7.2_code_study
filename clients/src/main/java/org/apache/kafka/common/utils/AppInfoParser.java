@@ -40,6 +40,7 @@ public class AppInfoParser {
 
     static {
         Properties props = new Properties();
+        // TODO: 11/15/23 为啥这个文件找不到呢？
         try (InputStream resourceStream = AppInfoParser.class.getResourceAsStream("/kafka/kafka-version.properties")) {
             props.load(resourceStream);
         } catch (Exception e) {

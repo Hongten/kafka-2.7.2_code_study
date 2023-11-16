@@ -55,6 +55,7 @@ package kafka.server
  *
  * Custom states is also allowed for cases where there are custom kafka states for different scenarios.
  */
+// TODO: 定义了broker的7种状态
 sealed trait BrokerStates { def state: Byte }
 case object NotRunning extends BrokerStates { val state: Byte = 0 }
 case object Starting extends BrokerStates { val state: Byte = 1 }
@@ -65,12 +66,15 @@ case object BrokerShuttingDown extends BrokerStates { val state: Byte = 7 }
 
 
 case class BrokerState() {
+  // TODO: 默认为没有启动的状态， 该变量为 volatile 修饰，即JMM会把该线程本地内存中的变量强制刷新到主内存中去，
+  //  这个写会操作会导致其他线程中的缓存无效（一个线程修改了某个变量的值，这新值对其他线程来说是立即可见的。）
   @volatile var currentState: Byte = NotRunning.state
 
   def newState(newState: BrokerStates): Unit = {
     this.newState(newState.state)
   }
 
+  // TODO: 这里是允许不在7种状态中的状态，e.g. 8, 这时候会出现怎样的现象呢？
   // Allowing undefined custom state
   def newState(newState: Byte): Unit = {
     currentState = newState

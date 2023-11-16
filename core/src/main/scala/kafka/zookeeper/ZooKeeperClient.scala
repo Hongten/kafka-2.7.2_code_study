@@ -105,6 +105,7 @@ class ZooKeeperClient(connectString: String,
 
   private val clientConfig = zkClientConfig getOrElse new ZKClientConfig()
 
+  // TODO: 初始化zk
   info(s"Initializing a new session to $connectString.")
   // Fail-fast if there's an error during construction (so don't call initialize, which retries forever)
   @volatile private var zooKeeper = new ZooKeeper(connectString, sessionTimeoutMs, ZooKeeperClientWatcher,
@@ -157,25 +158,32 @@ class ZooKeeperClient(connectString: String,
     if (requests.isEmpty)
       Seq.empty
     else {
+      // TODO: 和request size大小的计数器
       val countDownLatch = new CountDownLatch(requests.size)
       val responseQueue = new ArrayBlockingQueue[Req#Response](requests.size)
 
       requests.foreach { request =>
+        // TODO: 默认为最多 inFlightRequests=10个请求同时被处理 ，获取可用
         inFlightRequests.acquire()
         try {
           inReadLock(initializationLock) {
+            // TODO: 发送请求
             send(request) { response =>
               responseQueue.add(response)
+              // TODO: 释放可用
               inFlightRequests.release()
+              // TODO: 计数器减去1
               countDownLatch.countDown()
             }
           }
         } catch {
           case e: Throwable =>
+            // TODO: 遇到异常，释放可用
             inFlightRequests.release()
             throw e
         }
       }
+      // TODO: 线程等待，知道计数器减到0
       countDownLatch.await()
       responseQueue.asScala.toBuffer
     }
@@ -207,6 +215,7 @@ class ZooKeeperClient(connectString: String,
               stat, responseMetadata(sendTimeMs)))
         }, ctx.orNull)
       case CreateRequest(path, data, acl, createMode, ctx) =>
+        // TODO: 创建zk的path目录
         zooKeeper.create(path, data, acl.asJava, createMode,
           (rc, path, ctx, name) =>
             callback(CreateResponse(Code.get(rc), path, Option(ctx), name, responseMetadata(sendTimeMs))),

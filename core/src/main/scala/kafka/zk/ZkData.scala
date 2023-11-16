@@ -738,13 +738,16 @@ object ClusterZNode {
 }
 
 object ClusterIdZNode {
+  // TODO: /cluster/id/ - {"version":"1","id":"3bjYkEdwQ7WLZZue8vBorw"}
   def path = s"${ClusterZNode.path}/id"
 
   def toJson(id: String): Array[Byte] = {
+    // TODO: {"version":"1","id":"3bjYkEdwQ7WLZZue8vBorw"}
     Json.encodeAsBytes(Map("version" -> "1", "id" -> id).asJava)
   }
 
   def fromJson(clusterIdJson:  Array[Byte]): String = {
+    // TODO: {"version":"1","id":"3bjYkEdwQ7WLZZue8vBorw"}
     Json.parseBytes(clusterIdJson).map(_.asJsonObject("id").to[String]).getOrElse {
       throw new KafkaException(s"Failed to parse the cluster id json $clusterIdJson")
     }
@@ -916,6 +919,9 @@ object FeatureZNode {
 
 object ZkData {
 
+  // TODO: 在zk侧第一层目录为 [admin, brokers, cluster, config, consumers, controller, controller_epoch,
+  //  feature, isr_change_notification, kafka-acl, kafka-acl-changes, kafka-acl-extended,
+  //  kafka-acl-extended-changes, kafka-manager, latest_producer_id_block, log_dir_event_notification]
   // Important: it is necessary to add any new top level Zookeeper path to the Seq
   val SecureRootPaths = Seq(AdminZNode.path,
     BrokersZNode.path,
@@ -931,15 +937,15 @@ object ZkData {
 
   // These are persistent ZK paths that should exist on kafka broker startup.
   val PersistentZkPaths = Seq(
-    ConsumerPathZNode.path, // old consumer path
-    BrokerIdsZNode.path,
-    TopicsZNode.path,
-    ConfigEntityChangeNotificationZNode.path,
-    DeleteTopicsZNode.path,
-    BrokerSequenceIdZNode.path,
-    IsrChangeNotificationZNode.path,
-    ProducerIdBlockZNode.path,
-    LogDirEventNotificationZNode.path
+    ConsumerPathZNode.path, // old consumer path           // /consumers
+    BrokerIdsZNode.path,                                   // /brokers/ids
+    TopicsZNode.path,                                      // /brokers/topics
+    ConfigEntityChangeNotificationZNode.path,              // /config/changes
+    DeleteTopicsZNode.path,                                // /admin/delete_topics
+    BrokerSequenceIdZNode.path,                            // /brokers/seqid
+    IsrChangeNotificationZNode.path,                       // /isr_change_notification
+    ProducerIdBlockZNode.path,                             // /latest_producer_id_block
+    LogDirEventNotificationZNode.path                      // /log_dir_event_notification
   ) ++ ConfigType.all.map(ConfigEntityTypeZNode.path)
 
   val SensitiveRootPaths = Seq(

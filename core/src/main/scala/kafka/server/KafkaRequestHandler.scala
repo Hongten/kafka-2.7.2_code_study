@@ -286,6 +286,7 @@ object BrokerTopicStats {
   private val valueFactory = (k: String) => new BrokerTopicMetrics(Some(k))
 }
 
+// TODO: broker的topic状态信息 
 class BrokerTopicStats extends Logging {
   import BrokerTopicStats._
 
