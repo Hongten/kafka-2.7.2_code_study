@@ -9,6 +9,7 @@
 - 动态配置机制
 - broker metrics
 - topic metrics
+- broker quota机制
 
 # Producer
 - 生产者流程

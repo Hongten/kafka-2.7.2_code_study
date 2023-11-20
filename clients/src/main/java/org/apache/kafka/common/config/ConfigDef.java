@@ -458,6 +458,7 @@ public class ConfigDef {
     public Map<String, Object> parse(Map<?, ?> props) {
         // Check all configurations are defined
         List<String> undefinedConfigKeys = undefinedDependentConfigs();
+        // TODO: 11/20/23 如果有存在用户自定义的配置，在kafka的配置没有找到，则抛出  ConfigException 异常
         if (!undefinedConfigKeys.isEmpty()) {
             String joined = Utils.join(undefinedConfigKeys, ",");
             throw new ConfigException("Some configurations in are referred in the dependents, but not defined: " + joined);
@@ -465,13 +466,19 @@ public class ConfigDef {
         // parse all known keys
         Map<String, Object> values = new HashMap<>();
         for (ConfigKey key : configKeys.values())
+            // TODO: 11/20/23 把用户自定义的配置覆盖kafka原有的配置
             values.put(key.name, parseValue(key, props.get(key.name), props.containsKey(key.name)));
+        // TODO: 11/20/23 返回含有用户自定义的配置
         return values;
     }
 
+    // TODO: 11/20/23 key 配置的key值
+    // TODO: 11/20/23 value 用户自定义的value
+    // TODO: 11/20/23 isSet 用户是否有自定义这个配置
     Object parseValue(ConfigKey key, Object value, boolean isSet) {
         Object parsedValue;
         if (isSet) {
+            // TODO: 11/20/23 用户自定义配置覆盖原有配置
             parsedValue = parseType(key.name, value, key.type);
         // props map doesn't contain setting, the key is required because no default value specified - its an error
         } else if (NO_DEFAULT_VALUE.equals(key.defaultValue)) {
@@ -534,6 +541,7 @@ public class ConfigDef {
     }
 
     private List<String> undefinedDependentConfigs() {
+        // TODO: 11/20/23 获取没有被kafka定义的配置
         Set<String> undefinedConfigKeys = new HashSet<>();
         for (ConfigKey configKey : configKeys.values()) {
             for (String dependent: configKey.dependents) {

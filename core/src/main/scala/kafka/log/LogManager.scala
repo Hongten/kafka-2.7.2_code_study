@@ -58,7 +58,7 @@ class LogManager(logDirs: Seq[File],
                  val flushStartOffsetCheckpointMs: Long,
                  val retentionCheckMs: Long,
                  val maxPidExpirationMs: Int,
-                 scheduler: Scheduler,
+                 scheduler: Scheduler, // TODO: kafka的10个线程的线程池，后台运行
                  val brokerState: BrokerState,
                  brokerTopicStats: BrokerTopicStats,
                  logDirFailureChannel: LogDirFailureChannel,
@@ -69,15 +69,20 @@ class LogManager(logDirs: Seq[File],
   val LockFile = ".lock"
   val InitialTaskDelayMs = 30 * 1000
 
+  // TODO: log 创建或删除锁
   private val logCreationOrDeletionLock = new Object
+  // TODO: 当前的log ，放入到 Pool对象中
   private val currentLogs = new Pool[TopicPartition, Log]()
   // Future logs are put in the directory with "-future" suffix. Future log is created when user wants to move replica
   // from one log directory to another log directory on the same broker. The directory of the future log will be renamed
   // to replace the current log of the partition after the future log catches up with the current log
+  // TODO: 同一个broker，不同磁盘间的复制，就产生-future后缀的日志
   private val futureLogs = new Pool[TopicPartition, Log]()
   // Each element in the queue contains the log object to be deleted and the time it is scheduled for deletion.
+  // TODO: 等待删除的log
   private val logsToBeDeleted = new LinkedBlockingQueue[(Log, Long)]()
 
+  // TODO: /mnt/ssd/0/kafka/,/mnt/ssd/1/kafka/,/mnt/ssd/2/kafka/
   private val _liveLogDirs: ConcurrentLinkedQueue[File] = createAndValidateLogDirs(logDirs, initialOfflineDirs)
   @volatile private var _currentDefaultConfig = initialDefaultConfig
   @volatile private var numRecoveryThreadsPerDataDir = recoveryThreadsPerDataDir
@@ -140,21 +145,29 @@ class LogManager(logDirs: Seq[File],
    * <li> Check that each path is a readable directory
    * </ol>
    */
+  // TODO: dirs=/mnt/ssd/0/kafka/,/mnt/ssd/1/kafka/,/mnt/ssd/2/kafka/
+  // TODO: initialOfflineDirs= 有IO异常的路径
   private def createAndValidateLogDirs(dirs: Seq[File], initialOfflineDirs: Seq[File]): ConcurrentLinkedQueue[File] = {
     val liveLogDirs = new ConcurrentLinkedQueue[File]()
     val canonicalPaths = mutable.HashSet.empty[String]
 
+    // TODO: dir=/mnt/ssd/0/kafka/
     for (dir <- dirs) {
       try {
+        // TODO: 如果一个路径有IO异常，则抛 IOException
         if (initialOfflineDirs.contains(dir))
           throw new IOException(s"Failed to load ${dir.getAbsolutePath} during broker startup")
 
+        // TODO: 如果路径不存在
         if (!dir.exists) {
           info(s"Log directory ${dir.getAbsolutePath} not found, creating it.")
+          // TODO: 创建路径
           val created = dir.mkdirs()
           if (!created)
+          // TODO: 创建不了，抛IOException
             throw new IOException(s"Failed to create data directory ${dir.getAbsolutePath}")
         }
+        // TODO: dir=/mnt/ssd/0/kafka/  应该是一个文件夹，并且可读
         if (!dir.isDirectory || !dir.canRead)
           throw new IOException(s"${dir.getAbsolutePath} is not a readable log directory.")
 
@@ -402,36 +415,40 @@ class LogManager(logDirs: Seq[File],
    *  Start the background threads to flush logs and do log cleanup
    */
   def startup(): Unit = {
+    // TODO: kafka的10个线程的线程池，后台运行  
     /* Schedule the cleanup task to delete old logs */
     if (scheduler != null) {
       info("Starting log cleanup with a period of %d ms.".format(retentionCheckMs))
       scheduler.schedule("kafka-log-retention",
-                         cleanupLogs _,
+                         cleanupLogs _, // TODO: 标记为 .deleted 文件 
                          delay = InitialTaskDelayMs,
-                         period = retentionCheckMs,
+                         period = retentionCheckMs, // TODO: 默认5mins
                          TimeUnit.MILLISECONDS)
       info("Starting log flusher with a default period of %d ms.".format(flushCheckMs))
       scheduler.schedule("kafka-log-flusher",
-                         flushDirtyLogs _,
+                         flushDirtyLogs _, // TODO: 定时刷新还没有写到磁盘上日志。 一般来说，我们建议不要设置此设置并使用复制来实现持久性，并允许操作系统的后台刷新功能，因为它更高效。
                          delay = InitialTaskDelayMs,
-                         period = flushCheckMs,
+                         period = flushCheckMs, // TODO: Long.MaxValue
                          TimeUnit.MILLISECONDS)
+      // TODO: 定时将所有数据目录所有日志的检查点写到检查点文件中
       scheduler.schedule("kafka-recovery-point-checkpoint",
                          checkpointLogRecoveryOffsets _,
                          delay = InitialTaskDelayMs,
-                         period = flushRecoveryOffsetCheckpointMs,
+                         period = flushRecoveryOffsetCheckpointMs, // TODO: 60s
                          TimeUnit.MILLISECONDS)
       scheduler.schedule("kafka-log-start-offset-checkpoint",
                          checkpointLogStartOffsets _,
                          delay = InitialTaskDelayMs,
-                         period = flushStartOffsetCheckpointMs,
+                         period = flushStartOffsetCheckpointMs, // TODO: 60s
                          TimeUnit.MILLISECONDS)
+      // TODO: 定时删除标记为 delete 的日志文件 
       scheduler.schedule("kafka-delete-logs", // will be rescheduled after each delete logs with a dynamic period
                          deleteLogs _,
-                         delay = InitialTaskDelayMs,
+                         delay = InitialTaskDelayMs, // TODO: 30s
                          unit = TimeUnit.MILLISECONDS)
     }
     if (cleanerConfig.enableCleaner)
+    // TODO:  创建 CleanerThread 实例
       cleaner.startup()
   }
 
@@ -1071,8 +1088,10 @@ class LogManager(logDirs: Seq[File],
       deletableLogs.foreach {
         case (topicPartition, log) =>
           debug(s"Garbage collecting '${log.name}'")
+          // TODO: 会把segment标记为 xx.deleted  
           total += log.deleteOldSegments()
 
+          // TODO: 在一个broker的不同磁盘件移动  partition的 segments 
           val futureLog = futureLogs.get(topicPartition)
           if (futureLog != null) {
             // clean future logs
@@ -1146,6 +1165,8 @@ class LogManager(logDirs: Seq[File],
         val timeSinceLastFlush = time.milliseconds - log.lastFlushTime
         debug(s"Checking if flush is needed on ${topicPartition.topic} flush interval ${log.config.flushMs}" +
               s" last flushed ${log.lastFlushTime} time since last flush: $timeSinceLastFlush")
+        // TODO:  log.config.flushMs = Long.Max_value, 一般来说，我们建议不要设置此设置并使用复制来实现持久性，
+        //  并允许操作系统的后台刷新功能，因为它更高效。如果这里没有设置，那么这里一直不会被执行
         if(timeSinceLastFlush >= log.config.flushMs)
           log.flush()
       } catch {
@@ -1180,35 +1201,43 @@ object LogManager {
             time: Time,
             brokerTopicStats: BrokerTopicStats,
             logDirFailureChannel: LogDirFailureChannel): LogManager = {
+    // TODO: 拷贝kafka配置为默认配置 
     val defaultProps = KafkaServer.copyKafkaConfigToLog(config)
 
+    // TODO: 参数校验
     LogConfig.validateValues(defaultProps)
+    // TODO: 构建 LogConfig对象 
     val defaultLogConfig = LogConfig(defaultProps)
 
+    // TODO: (<topic_name, logConfig>, <topic_name, Exception>)
     // read the log configurations from zookeeper
     val (topicConfigs, failed) = zkClient.getLogConfigs(
+      // TODO: 获取zk中的所有topic 
       zkClient.getAllTopicsInCluster(),
       defaultProps
     )
+    // TODO: 如果 获取topic配置信息有异常的时候，会在这里抛出来
     if (!failed.isEmpty) throw failed.head._2
 
+    // TODO: 创建 CleanerConfig实例
     val cleanerConfig = LogCleaner.cleanerConfig(config)
 
-    new LogManager(logDirs = config.logDirs.map(new File(_).getAbsoluteFile),
-      initialOfflineDirs = initialOfflineDirs.map(new File(_).getAbsoluteFile),
-      topicConfigs = topicConfigs,
+    // TODO: 创建  LogManager 实例
+    new LogManager(logDirs = config.logDirs.map(new File(_).getAbsoluteFile), // TODO: log.dirs=/mnt/ssd/0/kafka/,/mnt/ssd/1/kafka/,/mnt/ssd/2/kafka/ 
+      initialOfflineDirs = initialOfflineDirs.map(new File(_).getAbsoluteFile), // TODO: 有IO异常的路径
+      topicConfigs = topicConfigs, // TODO: topic的配置信息，配置信息从zk中获取
       initialDefaultConfig = defaultLogConfig,
       cleanerConfig = cleanerConfig,
-      recoveryThreadsPerDataDir = config.numRecoveryThreadsPerDataDir,
-      flushCheckMs = config.logFlushSchedulerIntervalMs,
-      flushRecoveryOffsetCheckpointMs = config.logFlushOffsetCheckpointIntervalMs,
-      flushStartOffsetCheckpointMs = config.logFlushStartOffsetCheckpointIntervalMs,
-      retentionCheckMs = config.logCleanupIntervalMs,
-      maxPidExpirationMs = config.transactionalIdExpirationMs,
-      scheduler = kafkaScheduler,
+      recoveryThreadsPerDataDir = config.numRecoveryThreadsPerDataDir, // TODO: 1 
+      flushCheckMs = config.logFlushSchedulerIntervalMs, // todo Long.MaxValue
+      flushRecoveryOffsetCheckpointMs = config.logFlushOffsetCheckpointIntervalMs, // todo 60000
+      flushStartOffsetCheckpointMs = config.logFlushStartOffsetCheckpointIntervalMs, // todo 60000
+      retentionCheckMs = config.logCleanupIntervalMs, // todo 5mins
+      maxPidExpirationMs = config.transactionalIdExpirationMs, // todo 7-days
+      scheduler = kafkaScheduler, // todo 默认为10个线程的线程池，后台运行
       brokerState = brokerState,
       brokerTopicStats = brokerTopicStats,
-      logDirFailureChannel = logDirFailureChannel,
+      logDirFailureChannel = logDirFailureChannel, // TODO: logDIR channel 
       time = time)
   }
 }

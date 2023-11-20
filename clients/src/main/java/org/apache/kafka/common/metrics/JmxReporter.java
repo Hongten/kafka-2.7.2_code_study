@@ -336,6 +336,7 @@ public class JmxReporter implements MetricsReporter {
 
     @Override
     public void contextChange(MetricsContext metricsContext) {
+        // TODO: 11/20/23  namespace=kafka.server
         String namespace = metricsContext.contextLabels().get(MetricsContext.NAMESPACE);
         Objects.requireNonNull(namespace);
         synchronized (LOCK) {
@@ -349,7 +350,7 @@ public class JmxReporter implements MetricsReporter {
             if (namespace.isEmpty()) {
                 return;
             }
-
+            // TODO: 11/20/23 prefix=kafka.server
             prefix = namespace;
         }
     }

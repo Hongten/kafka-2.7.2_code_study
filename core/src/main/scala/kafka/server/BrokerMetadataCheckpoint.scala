@@ -39,14 +39,17 @@ class BrokerMetadataCheckpoint(val file: File) extends Logging {
   private val lock = new Object()
 
   def write(brokerMetadata: BrokerMetadata) = {
+    // TODO: 同步锁
     lock synchronized {
       try {
+        // TODO: 构建  Properties 实例
         val brokerMetaProps = new Properties()
         brokerMetaProps.setProperty("version", 0.toString)
         brokerMetaProps.setProperty("broker.id", brokerMetadata.brokerId.toString)
         brokerMetadata.clusterId.foreach { clusterId =>
           brokerMetaProps.setProperty("cluster.id", clusterId)
         }
+        // TODO: /mnt/ssd/0/kafka/meta.properties.tmp
         val temp = new File(file.getAbsolutePath + ".tmp")
         val fileOutputStream = new FileOutputStream(temp)
         try {
@@ -56,6 +59,9 @@ class BrokerMetadataCheckpoint(val file: File) extends Logging {
         } finally {
           Utils.closeQuietly(fileOutputStream, temp.getName)
         }
+        // TODO: 先把内容写入到 /mnt/ssd/0/kafka/meta.properties.tmp 文件中，在拷贝到 /mnt/ssd/0/kafka/meta.properties文件中
+        // TODO: 当这里出现异常，系统就会遗留 /mnt/ssd/0/kafka/meta.properties.tmp 文件，所以，在read()方法里面，会先把这个.tmp文件
+        // TODO: 删除后，再 进行读取
         Utils.atomicMoveWithFallback(temp.toPath, file.toPath)
       } catch {
         case ie: IOException =>
@@ -66,16 +72,26 @@ class BrokerMetadataCheckpoint(val file: File) extends Logging {
   }
 
   def read(): Option[BrokerMetadata] = {
+    // TODO: 如果存在 "/mnt/ssd/0/kafka/meta.properties.tmp" 则删除该文件
     Files.deleteIfExists(new File(file.getPath + ".tmp").toPath()) // try to delete any existing temp files for cleanliness
 
+    // TODO: 同步锁
     lock synchronized {
       try {
+        // TODO: 加载 /mnt/ssd/0/kafka/meta.properties
+        //  #Sat Sep 23 13:04:14 SGT 2023
+        //  broker.id=1009
+        //  version=0
+        //  cluster.id=BIbPq3azQnSIjx2QURxtBA
         val brokerMetaProps = new VerifiableProperties(Utils.loadProps(file.getAbsolutePath()))
+        // TODO: 对version进行校验
         val version = brokerMetaProps.getIntInRange("version", (0, Int.MaxValue))
         version match {
           case 0 =>
+            // TODO: 对brokerId， clusterId进行校验
             val brokerId = brokerMetaProps.getIntInRange("broker.id", (0, Int.MaxValue))
             val clusterId = Option(brokerMetaProps.getString("cluster.id", null))
+            // TODO: 返回brokerMetadata
             return Some(BrokerMetadata(brokerId, clusterId))
           case _ =>
             throw new IOException("Unrecognized version of the server meta.properties file: " + version)

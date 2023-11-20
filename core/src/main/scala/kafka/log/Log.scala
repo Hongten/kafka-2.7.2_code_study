@@ -1735,9 +1735,12 @@ class Log(@volatile private var _dir: File,
    */
   private def deleteOldSegments(predicate: (LogSegment, Option[LogSegment]) => Boolean,
                                 reason: SegmentDeletionReason): Int = {
+    // TODO: 同步锁
     lock synchronized {
+      // TODO: 找到可删除的segment 
       val deletable = deletableSegments(predicate)
       if (deletable.nonEmpty)
+      // TODO: 删除segment 
         deleteSegments(deletable, reason)
       else
         0
@@ -1750,9 +1753,11 @@ class Log(@volatile private var _dir: File,
       if (numToDelete > 0) {
         // we must always have at least one segment, so if we are going to delete all the segments, create a new one first
         if (segments.size == numToDelete)
+        // TODO:  创建一个新的segment
           roll()
         lock synchronized {
           checkIfMemoryMappedBufferClosed()
+          // TODO: 标记为 .deleted 文件，并且进行异步删除 
           // remove the segments for lookups
           removeAndDeleteSegments(deletable, asyncDelete = true, reason)
           maybeIncrementLogStartOffset(segments.firstEntry.getValue.baseOffset, SegmentDeletion)
@@ -1779,16 +1784,22 @@ class Log(@volatile private var _dir: File,
       Seq.empty
     } else {
       val deletable = ArrayBuffer.empty[LogSegment]
+      // TODO: 获取到segment的第一个entry
       var segmentEntry = segments.firstEntry
+      // TODO: 从第一个entry开始，一直往下面找，直到条件不满足
       while (segmentEntry != null) {
+        // TODO: 获取segment的value
         val segment = segmentEntry.getValue
+        // TODO: 获取 segmentEntry 的下一个entry
         val nextSegmentEntry = segments.higherEntry(segmentEntry.getKey)
         val (nextSegment, upperBoundOffset, isLastSegmentAndEmpty) = if (nextSegmentEntry != null)
           (nextSegmentEntry.getValue, nextSegmentEntry.getValue.baseOffset, false)
         else
           (null, logEndOffset, segment.size == 0)
 
+        // TODO:  没有超过高水位，并且entry的保留时间已经过期
         if (highWatermark >= upperBoundOffset && predicate(segment, Option(nextSegment)) && !isLastSegmentAndEmpty) {
+          // TODO:  满足要求的segment加入到集合
           deletable += segment
           segmentEntry = nextSegmentEntry
         } else {
@@ -1813,17 +1824,21 @@ class Log(@volatile private var _dir: File,
     }
   }
 
+  // TODO: 根据retention.ms 删除segments
   private def deleteRetentionMsBreachedSegments(): Int = {
     if (config.retentionMs < 0) return 0
     val startMs = time.milliseconds
 
     def shouldDelete(segment: LogSegment, nextSegmentOpt: Option[LogSegment]): Boolean = {
+      // TODO:  config.retentionMs 我们配置的保留时间， config.retentionMs默认7天
       startMs - segment.largestTimestamp > config.retentionMs
     }
 
     deleteOldSegments(shouldDelete, RetentionMsBreach)
   }
 
+
+  // TODO:  根据retention.bytes 删除segments，执行方法和 deleteRetentionMsBreachedSegments类似
   private def deleteRetentionSizeBreachedSegments(): Int = {
     if (config.retentionSize < 0 || size < config.retentionSize) return 0
     var diff = size - config.retentionSize
@@ -2268,6 +2283,7 @@ class Log(@volatile private var _dir: File,
                                       asyncDelete: Boolean,
                                       reason: SegmentDeletionReason): Unit = {
     if (segments.nonEmpty) {
+      // TODO: 同步锁 
       lock synchronized {
         // As most callers hold an iterator into the `segments` collection and `removeAndDeleteSegment` mutates it by
         // removing the deleted segment, we should force materialization of the iterator here, so that results of the
@@ -2277,6 +2293,8 @@ class Log(@volatile private var _dir: File,
         toDelete.foreach { segment =>
           this.segments.remove(segment.baseOffset)
         }
+        // TODO: 会把需要删除的文件标记为 .deleted 后缀，然后进行删除 ，asyncDelete 是否同步删除，
+        //  如果为异步删除，会开启一个job "delete-file"，60s后执行删除操作
         deleteSegmentFiles(toDelete, asyncDelete)
       }
     }
@@ -2293,16 +2311,20 @@ class Log(@volatile private var _dir: File,
    * @throws IOException if the file can't be renamed and still exists
    */
   private def deleteSegmentFiles(segments: Iterable[LogSegment], asyncDelete: Boolean): Unit = {
+    // TODO: 标记 segment为删除，在segment文件后面加入 .deleted 
+    // TODO:  e.g. 00000000005548383287.log 这是一个segment， 标记为删除，00000000005548383287.log.deleted
     segments.foreach(_.changeFileSuffixes("", Log.DeletedFileSuffix))
 
     def deleteSegments(): Unit = {
       info(s"Deleting segment files ${segments.mkString(",")}")
       maybeHandleIOException(s"Error while deleting segments for $topicPartition in dir ${dir.getParent}") {
+        // TODO: 删除标记为 .deleted的文件
         segments.foreach(_.deleteIfExists())
       }
     }
 
     if (asyncDelete)
+    // TODO: fileDeleteDelayMs=60s 默认 
       scheduler.schedule("delete-file", () => deleteSegments(), delay = config.fileDeleteDelayMs)
     else
       deleteSegments()

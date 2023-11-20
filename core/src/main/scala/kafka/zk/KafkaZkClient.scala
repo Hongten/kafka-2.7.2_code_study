@@ -293,12 +293,13 @@ class KafkaZkClient private[zk] (zooKeeperClient: ZooKeeperClient, isSecure: Boo
    *         2. Exceptions corresponding to failed log config lookups.
    */
   def getLogConfigs(
-    topics: Set[String],
+    topics: Set[String], 
     config: java.util.Map[String, AnyRef]
   ): (Map[String, LogConfig], Map[String, Exception]) = {
     val logConfigs = mutable.Map.empty[String, LogConfig]
     val failed = mutable.Map.empty[String, Exception]
     val configResponses = try {
+      // TODO: 获取所有topic信息
       getTopicConfigs(topics)
     } catch {
       case e: Exception =>
@@ -309,6 +310,7 @@ class KafkaZkClient private[zk] (zooKeeperClient: ZooKeeperClient, isSecure: Boo
       val topic = configResponse.ctx.get.asInstanceOf[String]
       configResponse.resultCode match {
         case Code.OK =>
+          // TODO: 这个是topic的配置 
           val overrides = ConfigEntityZNode.decode(configResponse.data)
           val logConfig = LogConfig.fromProps(config, overrides)
           logConfigs.put(topic, logConfig)
@@ -318,6 +320,7 @@ class KafkaZkClient private[zk] (zooKeeperClient: ZooKeeperClient, isSecure: Boo
         case _ => failed.put(topic, configResponse.resultException.get)
       }
     }
+    // TODO: (<topic_name, logConfig>, <topic_name, Exception>)
     (logConfigs.toMap, failed.toMap)
   }
 
@@ -464,6 +467,7 @@ class KafkaZkClient private[zk] (zooKeeperClient: ZooKeeperClient, isSecure: Boo
    */
   def getAllTopicsInCluster(registerWatch: Boolean = false): Set[String] = {
     val getChildrenResponse = retryRequestUntilConnected(
+      // TODO: /brokers/topics 获取所有的topic节点信息
       GetChildrenRequest(TopicsZNode.path, registerWatch))
     getChildrenResponse.resultCode match {
       case Code.OK => getChildrenResponse.children.toSet
@@ -1535,13 +1539,18 @@ class KafkaZkClient private[zk] (zooKeeperClient: ZooKeeperClient, isSecure: Boo
     * @return sequence number as the broker id
     */
   def generateBrokerSequenceId(): Int = {
+    // TODO:  生成brokerId， 路径 /brokers/seqid
     val setDataRequest = SetDataRequest(BrokerSequenceIdZNode.path, Array.empty[Byte], ZkVersion.MatchAnyVersion)
+    // TODO: 发送请求
     val setDataResponse = retryRequestUntilConnected(setDataRequest)
     setDataResponse.resultCode match {
       case Code.OK => setDataResponse.stat.getVersion
       case Code.NONODE =>
+        // TODO: 没有找到对应的路径
         // maker sure the path exists
+        // TODO: 先创建路径
         createRecursive(BrokerSequenceIdZNode.path, Array.empty[Byte], throwIfPathExists = false)
+        // TODO: 再发送一次请求
         generateBrokerSequenceId()
       case _ => throw setDataResponse.resultException.get
     }
@@ -1689,10 +1698,12 @@ class KafkaZkClient private[zk] (zooKeeperClient: ZooKeeperClient, isSecure: Boo
   }
 
   private def getTopicConfigs(topics: Set[String]): Seq[GetDataResponse] = {
+    // TODO: 创建topic信息请求
     val getDataRequests: Seq[GetDataRequest] = topics.iterator.map { topic =>
+      // TODO: 获取topic的信息 e.g. /brokers/topics/test_topic_1
       GetDataRequest(ConfigEntityZNode.path(ConfigType.Topic, topic), ctx = Some(topic))
     }.toBuffer
-
+    // TODO: 获取topic信息
     retryRequestsUntilConnected(getDataRequests)
   }
 

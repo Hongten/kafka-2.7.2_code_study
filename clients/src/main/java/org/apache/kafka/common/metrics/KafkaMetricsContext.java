@@ -44,7 +44,9 @@ public class KafkaMetricsContext implements MetricsContext {
      *                  values will be converted to string using Object.toString()
      */
     public KafkaMetricsContext(String namespace, Map<String, ?> contextLabels) {
+        // TODO: 11/20/23 <"_namespace", "kafka.server">
         this.contextLabels.put(MetricsContext.NAMESPACE, namespace);
+        // TODO: 11/20/23 把brokerId， clusterid, 配置文件中 以 metrics.context. 开头的配置 都加入到 this.contextLabels 中
         contextLabels.forEach((key, value) -> this.contextLabels.put(key, value != null ? value.toString() : null));
     }
 

@@ -58,7 +58,7 @@ trait Scheduler {
 
 /**
  * A scheduler based on java.util.concurrent.ScheduledThreadPoolExecutor
- * 
+ *
  * It has a pool of kafka-scheduler- threads that do the actual work.
  * 
  * @param threads The number of threads in the thread pool
@@ -67,7 +67,7 @@ trait Scheduler {
  */
 @threadsafe
 class KafkaScheduler(val threads: Int, 
-                     val threadNamePrefix: String = "kafka-scheduler-", 
+                     val threadNamePrefix: String = "kafka-scheduler-", // todo kafka后台线程名前缀
                      daemon: Boolean = true) extends Scheduler with Logging {
   private var executor: ScheduledThreadPoolExecutor = null
   private val schedulerThreadId = new AtomicInteger(0)
@@ -75,8 +75,10 @@ class KafkaScheduler(val threads: Int,
   override def startup(): Unit = {
     debug("Initializing task scheduler.")
     this synchronized {
+      // TODO: 检查是否已经启动
       if(isStarted)
         throw new IllegalStateException("This scheduler has already been started!")
+      // TODO: 创建  ScheduledThreadPoolExecutor实例 threads=10 默认值
       executor = new ScheduledThreadPoolExecutor(threads)
       executor.setContinueExistingPeriodicTasksAfterShutdownPolicy(false)
       executor.setExecuteExistingDelayedTasksAfterShutdownPolicy(false)
@@ -138,6 +140,7 @@ class KafkaScheduler(val threads: Int,
   
   def isStarted: Boolean = {
     this synchronized {
+      // TODO: 如果 executor 已经被创建，说明已经启动，否则就是没有启动
       executor != null
     }
   }

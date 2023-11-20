@@ -151,7 +151,9 @@ class LogCleaner(initialConfig: CleanerConfig,
    */
   def startup(): Unit = {
     info("Starting the log cleaner")
+    // TODO: 默认为1个线程
     (0 until config.numThreads).foreach { i =>
+      // TODO: 创建 CleanerThread 实例
       val cleaner = new CleanerThread(i)
       cleaners += cleaner
       cleaner.start()
@@ -440,14 +442,14 @@ object LogCleaner {
   )
 
   def cleanerConfig(config: KafkaConfig): CleanerConfig = {
-    CleanerConfig(numThreads = config.logCleanerThreads,
-      dedupeBufferSize = config.logCleanerDedupeBufferSize,
+    CleanerConfig(numThreads = config.logCleanerThreads, // todo default 1
+      dedupeBufferSize = config.logCleanerDedupeBufferSize, // todo 128 MB
       dedupeBufferLoadFactor = config.logCleanerDedupeBufferLoadFactor,
-      ioBufferSize = config.logCleanerIoBufferSize,
-      maxMessageSize = config.messageMaxBytes,
-      maxIoBytesPerSecond = config.logCleanerIoMaxBytesPerSecond,
-      backOffMs = config.logCleanerBackoffMs,
-      enableCleaner = config.logCleanerEnable)
+      ioBufferSize = config.logCleanerIoBufferSize, // todo 512KB
+      maxMessageSize = config.messageMaxBytes, // todo 1MB, 一般情况下会设置大一些， e.g. message.max.bytes=16777216
+      maxIoBytesPerSecond = config.logCleanerIoMaxBytesPerSecond, // todo Double.MaxValue ,无限
+      backOffMs = config.logCleanerBackoffMs, // todo 15s
+      enableCleaner = config.logCleanerEnable) // todo true, 默认开启
 
   }
 

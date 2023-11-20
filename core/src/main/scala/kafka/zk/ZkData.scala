@@ -368,6 +368,7 @@ object ConfigEntityZNode {
     Json.encodeAsBytes(Map("version" -> 1, "config" -> config).asJava)
   }
   def decode(bytes: Array[Byte]): Properties = {
+    // TODO: 把json信息转换为 properties对象
     val props = new Properties()
     if (bytes != null) {
       Json.parseBytes(bytes).foreach { js =>

@@ -982,6 +982,7 @@ object KafkaConfig {
   val PasswordEncoderKeyLengthDoc =  "The key length used for encoding dynamically configured passwords."
   val PasswordEncoderIterationsDoc =  "The iteration count used for encoding dynamically configured passwords."
 
+  // TODO: Kafka默认的初始配置
   private val configDef = {
     import ConfigDef.Importance._
     import ConfigDef.Range._
@@ -1258,6 +1259,7 @@ object KafkaConfig {
     fromProps(props, true)
 
   def fromProps(props: Properties, doLog: Boolean): KafkaConfig =
+  // TODO: 根据 Properties 实例创建 KafkaConfig 实例
     new KafkaConfig(props, doLog)
 
   def fromProps(defaults: Properties, overrides: Properties): KafkaConfig =
@@ -1310,9 +1312,12 @@ class KafkaConfig(val props: java.util.Map[_, _], doLog: Boolean, dynamicConfigO
   extends AbstractConfig(KafkaConfig.configDef, props, doLog) {
 
   def this(props: java.util.Map[_, _]) = this(props, true, None)
+
+  // TODO: 从 KafkaServerStartable 启动时，调用方法
   def this(props: java.util.Map[_, _], doLog: Boolean) = this(props, doLog, None)
   // Cache the current config to avoid acquiring read lock to access from dynamicConfig
   @volatile private var currentConfig = this
+  // TODO: 动态配置
   private[server] val dynamicConfig = dynamicConfigOverride.getOrElse(new DynamicBrokerConfig(this))
 
   private[server] def updateCurrentConfig(newConfig: KafkaConfig): Unit = {
@@ -1484,6 +1489,7 @@ class KafkaConfig(val props: java.util.Map[_, _], doLog: Boolean, dynamicConfigO
   /** ********* Log Configuration ***********/
   val autoCreateTopicsEnable = getBoolean(KafkaConfig.AutoCreateTopicsEnableProp)
   val numPartitions = getInt(KafkaConfig.NumPartitionsProp)
+  // TODO:  log.dirs=/mnt/ssd/0/kafka/,/mnt/ssd/1/kafka/,/mnt/ssd/2/kafka/
   val logDirs = CoreUtils.parseCsvList(Option(getString(KafkaConfig.LogDirsProp)).getOrElse(getString(KafkaConfig.LogDirProp)))
   def logSegmentBytes = getInt(KafkaConfig.LogSegmentBytesProp)
   def logFlushIntervalMessages = getLong(KafkaConfig.LogFlushIntervalMessagesProp)

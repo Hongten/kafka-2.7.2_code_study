@@ -159,16 +159,21 @@ public class Metrics implements Closeable {
         this.sensors = new ConcurrentHashMap<>();
         this.metrics = new ConcurrentHashMap<>();
         this.childrenSensors = new ConcurrentHashMap<>();
+        // TODO: 11/20/23 使用的是 JmxReporter()  
         this.reporters = Objects.requireNonNull(reporters);
         this.time = time;
         for (MetricsReporter reporter : reporters) {
+            // TODO: 11/20/23 prefix=kafka.server
             reporter.contextChange(metricsContext);
+            // TODO: 11/20/23 reporter初始化
             reporter.init(new ArrayList<>());
         }
 
         // Create the ThreadPoolExecutor only if expiration of Sensors is enabled.
         if (enableExpiration) {
+            // TODO: 11/20/23  创建ScheduledThreadPoolExecutor实例
             this.metricsScheduler = new ScheduledThreadPoolExecutor(1);
+            // TODO: 11/20/23 SensorExpiryThread
             // Creating a daemon thread to not block shutdown
             this.metricsScheduler.setThreadFactory(runnable -> KafkaThread.daemon("SensorExpiryThread", runnable));
             this.metricsScheduler.scheduleAtFixedRate(new ExpireSensorTask(), 30, 30, TimeUnit.SECONDS);

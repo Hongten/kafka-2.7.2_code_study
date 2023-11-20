@@ -195,6 +195,7 @@ object DynamicBrokerConfig {
   }
 }
 
+// TODO: broker动态配置
 class DynamicBrokerConfig(private val kafkaConfig: KafkaConfig) extends Logging {
 
   private[server] val staticBrokerConfigs = ConfigDef.convertToStringMapWithPasswordValues(kafkaConfig.originalsFromThisConfig).asScala
@@ -204,15 +205,22 @@ class DynamicBrokerConfig(private val kafkaConfig: KafkaConfig) extends Logging 
   private val reconfigurables = mutable.Buffer[Reconfigurable]()
   private val brokerReconfigurables = mutable.Buffer[BrokerReconfigurable]()
   private val lock = new ReentrantReadWriteLock
+  // TODO: 当前配置
   private var currentConfig = kafkaConfig
+  // TODO:  kafkaConfig.passwordEncoderSecret 默认为空
   private val dynamicConfigPasswordEncoder = maybeCreatePasswordEncoder(kafkaConfig.passwordEncoderSecret)
 
+  // TODO: 初始化动态配置 
   private[server] def initialize(zkClient: KafkaZkClient): Unit = {
+    // TODO:  currentConfig当前的配置信息
     currentConfig = new KafkaConfig(kafkaConfig.props, false, None)
+    // TODO: 创建AdminZkClient实例 
     val adminZkClient = new AdminZkClient(zkClient)
+    // TODO: /broker/<default> 
     updateDefaultConfig(adminZkClient.fetchEntityConfig(ConfigType.Broker, ConfigEntityName.Default))
     val props = adminZkClient.fetchEntityConfig(ConfigType.Broker, kafkaConfig.brokerId.toString)
     val brokerConfig = maybeReEncodePasswords(props, adminZkClient)
+    // TODO: 更新broker的动态配置信息
     updateBrokerConfig(kafkaConfig.brokerId, brokerConfig)
   }
 
@@ -405,6 +413,7 @@ class DynamicBrokerConfig(private val kafkaConfig: KafkaConfig) extends Logging 
   // have been removed during broker restart.
   private def maybeReEncodePasswords(persistentProps: Properties, adminZkClient: AdminZkClient): Properties = {
     val props = persistentProps.clone().asInstanceOf[Properties]
+    // TODO: 是否存在pswd配置
     if (props.asScala.keySet.exists(isPasswordConfig)) {
       maybeCreatePasswordEncoder(kafkaConfig.passwordEncoderOldSecret).foreach { passwordDecoder =>
         persistentProps.asScala.forKeyValue { (configName, value) =>

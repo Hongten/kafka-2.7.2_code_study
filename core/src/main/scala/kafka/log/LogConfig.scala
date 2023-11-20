@@ -67,38 +67,66 @@ object Defaults {
   val MessageDownConversionEnable = kafka.server.Defaults.MessageDownConversionEnable
 }
 
+// TODO: Log相关的配置信息
 case class LogConfig(props: java.util.Map[_, _], overriddenConfigs: Set[String] = Set.empty)
   extends AbstractConfig(LogConfig.configDef, props, false) {
   /**
    * Important note: Any configuration parameter that is passed along from KafkaConfig to LogConfig
    * should also go in [[kafka.server.KafkaServer.copyKafkaConfigToLog]].
    */
+  // TODO: segment大小，默认为1G 
   val segmentSize = getInt(LogConfig.SegmentBytesProp)
+  // TODO: 7-days 
   val segmentMs = getLong(LogConfig.SegmentMsProp)
+  // TODO: 0 
   val segmentJitterMs = getLong(LogConfig.SegmentJitterMsProp)
+  // TODO: 10MB 
   val maxIndexSize = getInt(LogConfig.SegmentIndexBytesProp)
+  // TODO: Long.MaxValue 
   val flushInterval = getLong(LogConfig.FlushMessagesProp)
+  // TODO: Long.MaxValue 
   val flushMs = getLong(LogConfig.FlushMsProp)
+  // TODO: -1L 
   val retentionSize = getLong(LogConfig.RetentionBytesProp)
+  // TODO: 7-days 
   val retentionMs = getLong(LogConfig.RetentionMsProp)
+  // TODO: 1MB + head
   val maxMessageSize = getInt(LogConfig.MaxMessageBytesProp)
+  // TODO:  4096
   val indexInterval = getInt(LogConfig.IndexIntervalBytesProp)
+  // TODO: 60000 
   val fileDeleteDelayMs = getLong(LogConfig.FileDeleteDelayMsProp)
+  // TODO: 24 * 60 * 60 * 1000L 
   val deleteRetentionMs = getLong(LogConfig.DeleteRetentionMsProp)
+  // TODO: 0L 
   val compactionLagMs = getLong(LogConfig.MinCompactionLagMsProp)
+  // TODO: Long.MaxValue 
   val maxCompactionLagMs = getLong(LogConfig.MaxCompactionLagMsProp)
+  // TODO: 0.5d 
   val minCleanableRatio = getDouble(LogConfig.MinCleanableDirtyRatioProp)
+  // TODO: compact清理策略 
   val compact = getList(LogConfig.CleanupPolicyProp).asScala.map(_.toLowerCase(Locale.ROOT)).contains(LogConfig.Compact)
+  // TODO: delete清理策略
   val delete = getList(LogConfig.CleanupPolicyProp).asScala.map(_.toLowerCase(Locale.ROOT)).contains(LogConfig.Delete)
+  // TODO: false 是否运行脏选leader
   val uncleanLeaderElectionEnable = getBoolean(LogConfig.UncleanLeaderElectionEnableProp)
+  // TODO: 1， 最小同步副本数
   val minInSyncReplicas = getInt(LogConfig.MinInSyncReplicasProp)
+  // TODO: producer ， 以生产者设置的压缩类型为准， ('gzip', 'snappy', 'lz4', 'zstd')
   val compressionType = getString(LogConfig.CompressionTypeProp).toLowerCase(Locale.ROOT)
+  // TODO: 是否先创建 log segment文件，默认false 
   val preallocate = getBoolean(LogConfig.PreAllocateEnableProp)
+  // TODO: KAFKA_2_7_IV2
   val messageFormatVersion = ApiVersion(getString(LogConfig.MessageFormatVersionProp))
+  // TODO: CreateTime in ("CreateTime", "LogAppendTime") ，消息的创建时间和追加时间，默认是创建时间
   val messageTimestampType = TimestampType.forName(getString(LogConfig.MessageTimestampTypeProp))
+  // TODO: Long.MaxValue， 只对 CreateTime有效，对 LogAppendTime 会忽略
   val messageTimestampDifferenceMaxMs = getLong(LogConfig.MessageTimestampDifferenceMaxMsProp).longValue
+  // TODO: List(), empty
   val LeaderReplicationThrottledReplicas = getList(LogConfig.LeaderReplicationThrottledReplicasProp)
+  // TODO: empty list()
   val FollowerReplicationThrottledReplicas = getList(LogConfig.FollowerReplicationThrottledReplicasProp)
+  // TODO: true , 该配置控制是否启用消息格式下转换以满足消费请求
   val messageDownConversionEnable = getBoolean(LogConfig.MessageDownConversionEnableProp)
 
   def randomSegmentJitter: Long =
@@ -327,8 +355,8 @@ object LogConfig {
   private[kafka] def configKeys: Map[String, ConfigKey] = configDef.configKeys.asScala
 
   def validateValues(props: java.util.Map[_, _]): Unit = {
-    val minCompactionLag =  props.get(MinCompactionLagMsProp).asInstanceOf[Long]
-    val maxCompactionLag =  props.get(MaxCompactionLagMsProp).asInstanceOf[Long]
+    val minCompactionLag =  props.get(MinCompactionLagMsProp).asInstanceOf[Long] // todo 默认0
+    val maxCompactionLag =  props.get(MaxCompactionLagMsProp).asInstanceOf[Long] // todo 默认Long.max_value
     if (minCompactionLag > maxCompactionLag) {
       throw new InvalidConfigurationException(s"conflict topic config setting $MinCompactionLagMsProp " +
         s"($minCompactionLag) > $MaxCompactionLagMsProp ($maxCompactionLag)")

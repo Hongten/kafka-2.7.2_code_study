@@ -192,6 +192,7 @@ class ClientQuotaManager(private val config: ClientQuotaManagerConfig,
 
   private val lock = new ReentrantReadWriteLock()
   private val sensorAccessor = new SensorAccess(lock, metrics)
+  // TODO: 根据配置，默认情况下是没有配置quota回调的，因此会创建一个默认的quota回调 DefaultQuotaCallback 实例
   private val quotaCallback = clientQuotaCallback.getOrElse(new DefaultQuotaCallback)
   private val staticConfigClientIdQuota = Quota.upperBound(config.quotaDefault.toDouble)
   private val clientQuotaType = QuotaType.toClientQuotaType(quotaType)
@@ -568,6 +569,7 @@ class ClientQuotaManager(private val config: ClientQuotaManagerConfig,
     throttledChannelReaper.shutdown()
   }
 
+  // TODO: 默认的quota回调
   class DefaultQuotaCallback extends ClientQuotaCallback {
     private val overriddenQuotas = new ConcurrentHashMap[ClientQuotaEntity, Quota]()
 

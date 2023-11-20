@@ -87,9 +87,9 @@ object KafkaServer {
 
   private[server] def metricConfig(kafkaConfig: KafkaConfig): MetricConfig = {
     new MetricConfig()
-      .samples(kafkaConfig.metricNumSamples)
-      .recordLevel(Sensor.RecordingLevel.forName(kafkaConfig.metricRecordingLevel))
-      .timeWindow(kafkaConfig.metricSampleWindowMs, TimeUnit.MILLISECONDS)
+      .samples(kafkaConfig.metricNumSamples) // todo 默认 2
+      .recordLevel(Sensor.RecordingLevel.forName(kafkaConfig.metricRecordingLevel)) // todo 默认info
+      .timeWindow(kafkaConfig.metricSampleWindowMs, TimeUnit.MILLISECONDS) // todo 默认为30s
   }
 
   def zkClientConfigFromKafkaConfig(config: KafkaConfig, forceZkSslClientEnable: Boolean = false) =
@@ -130,14 +130,13 @@ class KafkaServer(val config: KafkaConfig, time: Time = Time.SYSTEM, threadNameP
   private val isShuttingDown = new AtomicBoolean(false)
   // TODO: 是否启动标志
   private val isStartingUp = new AtomicBoolean(false)
-
+  // TODO: 阻塞主线程等待 KafkaServer 的关闭
   private var shutdownLatch = new CountDownLatch(1)
 
   //properties for MetricsContext
   private val metricsPrefix: String = "kafka.server"
   private val KAFKA_CLUSTER_ID: String = "kafka.cluster.id"
   private val KAFKA_BROKER_ID: String = "kafka.broker.id"
-
 
   // TODO: 日志对象
   private var logContext: LogContext = null
@@ -149,21 +148,30 @@ class KafkaServer(val config: KafkaConfig, time: Time = Time.SYSTEM, threadNameP
   // TODO: broker server的状态实例
   val brokerState: BrokerState = new BrokerState
 
-  // TODO: 数据和control 请求处理器
+  // TODO: API接口类，用于处理数据类请求
   var dataPlaneRequestProcessor: KafkaApis = null
+  // TODO: API接口，用于处理控制类请求 
   var controlPlaneRequestProcessor: KafkaApis = null
 
+  // TODO: 权限管理 
   var authorizer: Option[Authorizer] = None
+  // TODO: 启动socket，监听9092端口，等待接收客户端请求
   var socketServer: SocketServer = null
-  // TODO:  数据和control 请求处理 pool
+  // TODO:  数据类请求处理线程池
   var dataPlaneRequestHandlerPool: KafkaRequestHandlerPool = null
+  // TODO: 命令类处理线程池
   var controlPlaneRequestHandlerPool: KafkaRequestHandlerPool = null
 
+  // TODO: 日志管理器
   var logDirFailureChannel: LogDirFailureChannel = null
+  // TODO: 用于管理记录在本地的日志数据 
   var logManager: LogManager = null
 
+  // TODO: 副本管理器
   var replicaManager: ReplicaManager = null
+  // TODO: topic增删管理器
   var adminManager: AdminManager = null
+  // TODO: token管理器
   var tokenManager: DelegationTokenManager = null
 
   // TODO: 动态配置
@@ -183,10 +191,12 @@ class KafkaServer(val config: KafkaConfig, time: Time = Time.SYSTEM, threadNameP
 
   var brokerToControllerChannelManager: BrokerToControllerChannelManager = null
 
+  // TODO: 定时任务调度器
   var kafkaScheduler: KafkaScheduler = null
 
+  // TODO: 集群分区状态信息缓存
   var metadataCache: MetadataCache = null
-  // TODO: quota
+  // TODO: quota配额管理器
   var quotaManagers: QuotaFactory.QuotaManagers = null
 
   // TODO: zookeeper配置和客户端 , server.properties中 zookeeper.connect， zookeeper.connection.timeout.ms 配置信息
@@ -203,6 +213,10 @@ class KafkaServer(val config: KafkaConfig, time: Time = Time.SYSTEM, threadNameP
   //  cluster.id=BIbPq3azQnSIjx2QURxtBA
   //
   val brokerMetaPropsFile = "meta.properties"
+  // TODO: config.logDirs. e.g. log.dirs=/mnt/ssd/0/kafka/,/mnt/ssd/1/kafka/,/mnt/ssd/2/kafka/ 
+  // TODO: <"/mnt/ssd/0/kafka/", BrokerMetadataCheckpoint(new File("/mnt/ssd/0/kafka/meta.properties"))>
+  // TODO: <"/mnt/ssd/1/kafka/", BrokerMetadataCheckpoint(new File("/mnt/ssd/1/kafka/meta.properties"))>
+  // TODO: <"/mnt/ssd/2/kafka/", BrokerMetadataCheckpoint(new File("/mnt/ssd/2/kafka/meta.properties"))>
   val brokerMetadataCheckpoints = config.logDirs.map(logDir => (logDir, new BrokerMetadataCheckpoint(new File(logDir + File.separator + brokerMetaPropsFile)))).toMap
 
   // TODO: cluster.id=BIbPq3azQnSIjx2QURxtBA
@@ -274,8 +288,10 @@ class KafkaServer(val config: KafkaConfig, time: Time = Time.SYSTEM, threadNameP
         info(s"Cluster ID = $clusterId")
 
         /* load metadata */
+        // TODO:  (BrokerMetadata(brokerId, clusterId), offlineDirs)
         val (preloadedBrokerMetadataCheckpoint, initialOfflineDirs) = getBrokerMetadataAndOfflineDirs
 
+        // TODO: 这里之前有遇到过相同的异常：先创建一个kafka集群，然后把broker停掉，修改 meta.properties 文件里面的clusterId，就会出现这个异常
         /* check cluster id */
         if (preloadedBrokerMetadataCheckpoint.clusterId.isDefined && preloadedBrokerMetadataCheckpoint.clusterId.get != clusterId)
           throw new InconsistentClusterIdException(
@@ -283,22 +299,30 @@ class KafkaServer(val config: KafkaConfig, time: Time = Time.SYSTEM, threadNameP
             s"The broker is trying to join the wrong cluster. Configured zookeeper.connect may be wrong.")
 
         /* generate brokerId */
+        // TODO: brokerId获取或生成的地方： config.brokerId, metadata.brokerId, zk generate brokerId
         config.brokerId = getOrGenerateBrokerId(preloadedBrokerMetadataCheckpoint)
+        // TODO: 创建  LogContext 实例
         logContext = new LogContext(s"[KafkaServer id=${config.brokerId}] ")
+        // TODO: KafkaServer继承了 Logging， 在Logging中有 logIdent
         this.logIdent = logContext.logPrefix
 
+        // TODO: 动态配置初始化，DynamicConfigManager启动之后任何的动态修改，都会生效， 参考  dynamicConfigManager.startup()
         // initialize dynamic broker configs from ZooKeeper. Any updates made after this will be
         // applied after DynamicConfigManager starts.
         config.dynamicConfig.initialize(zkClient)
 
+        // TODO: 配置： background.threads。 BackgroundThreads = 10 默认值 ，创建 KafkaScheduler 实例
         /* start scheduler */
         kafkaScheduler = new KafkaScheduler(config.backgroundThreads)
+        // TODO: 启动  kafkaScheduler
         kafkaScheduler.startup()
 
+        // TODO: 实例化 kafkaYammerMetrics
         /* create and configure metrics */
         kafkaYammerMetrics = KafkaYammerMetrics.INSTANCE
         kafkaYammerMetrics.configure(config.originals)
 
+        // TODO: 创建JmxReporter实例 ，prefix=""
         val jmxReporter = new JmxReporter()
         jmxReporter.configure(config.originals)
 
@@ -307,18 +331,24 @@ class KafkaServer(val config: KafkaConfig, time: Time = Time.SYSTEM, threadNameP
 
         val metricConfig = KafkaServer.metricConfig(config)
         val metricsContext = createKafkaMetricsContext()
+        // TODO:  创建Metrics 实例
         metrics = new Metrics(metricConfig, reporters, time, true, metricsContext)
 
+        // TODO: 创建  BrokerTopicStats 实例
         /* register broker metrics */
         _brokerTopicStats = new BrokerTopicStats
 
+        // TODO: 限流管理器，创建 QuotaManagers 实例
         quotaManagers = QuotaFactory.instantiate(config, metrics, time, threadNamePrefix.getOrElse(""))
         notifyClusterListeners(kafkaMetricsReporters ++ metrics.reporters.asScala)
 
+        // TODO: offline 的磁盘路径 通道
         logDirFailureChannel = new LogDirFailureChannel(config.logDirs.size)
 
         /* start log manager */
+        // TODO: initialOfflineDirs - 有IO异常的路径
         logManager = LogManager(config, initialOfflineDirs, zkClient, brokerState, kafkaScheduler, time, brokerTopicStats, logDirFailureChannel)
+        // TODO: 启动 6 个线程，
         logManager.startup()
 
         metadataCache = new MetadataCache(config.brokerId)
@@ -435,6 +465,7 @@ class KafkaServer(val config: KafkaConfig, time: Time = Time.SYSTEM, threadNameP
   }
 
   private[server] def notifyClusterListeners(clusterListeners: Seq[AnyRef]): Unit = {
+    // TODO: 创建  ClusterResourceListeners 实例
     val clusterResourceListeners = new ClusterResourceListeners
     clusterResourceListeners.maybeAddAll(clusterListeners.asJava)
     clusterResourceListeners.onUpdate(new ClusterResource(clusterId))
@@ -452,7 +483,9 @@ class KafkaServer(val config: KafkaConfig, time: Time = Time.SYSTEM, threadNameP
     val contextLabels = new util.HashMap[String, Object]
     contextLabels.put(KAFKA_CLUSTER_ID, clusterId)
     contextLabels.put(KAFKA_BROKER_ID, config.brokerId.toString)
+    // TODO: 配置文件中 以 metrics.context. 开头的配置 
     contextLabels.putAll(config.originalsWithPrefix(CommonClientConfigs.METRICS_CONTEXT_PREFIX))
+    // TODO: 创建  KafkaMetricsContext实例， metricsPrefix=kafka.server 
     val metricsContext = new KafkaMetricsContext(metricsPrefix, contextLabels)
     metricsContext
   }
@@ -826,25 +859,33 @@ class KafkaServer(val config: KafkaConfig, time: Time = Time.SYSTEM, threadNameP
    * @return A 2-tuple containing the brokerMetadata and a sequence of offline log directories.
    */
   private def getBrokerMetadataAndOfflineDirs: (BrokerMetadata, Seq[String]) = {
+    // TODO: broker metadata map 
     val brokerMetadataMap = mutable.HashMap[String, BrokerMetadata]()
     val brokerMetadataSet = mutable.HashSet[BrokerMetadata]()
+    // TODO: log dirs 
     val offlineDirs = mutable.ArrayBuffer.empty[String]
 
+    // TODO: 配置文件中的logDirs e.g. log.dirs=/mnt/ssd/0/kafka/,/mnt/ssd/1/kafka/,/mnt/ssd/2/kafka/
     for (logDir <- config.logDirs) {
       try {
+        // TODO: 读取 /mnt/ssd/0/kafka/meta.properties 文件
         val brokerMetadataOpt = brokerMetadataCheckpoints(logDir).read()
         brokerMetadataOpt.foreach { brokerMetadata =>
           brokerMetadataMap += (logDir -> brokerMetadata)
+          // TODO: Set的功能是去重，这里的brokerMetadata=BrokerMetadata(brokerId, clusterId)，每个路径下面都是一样的，
+          //  所以，这个集合里面只能有一个值
           brokerMetadataSet += brokerMetadata
         }
       } catch {
         case e: IOException =>
+          // TODO: 出现IO异常的时候，把对应的log路径加入 ，表明该路径为offlineDir
           offlineDirs += logDir
           error(s"Fail to read $brokerMetaPropsFile under log directory $logDir", e)
       }
     }
 
     if (brokerMetadataSet.size > 1) {
+      // TODO: 当集合里面出现了两个或两个以上的值，说明clusterId，brokerId就不一致了。预期结果：同一个broker，clusterId和brokerId都应相同
       val builder = new StringBuilder
 
       for ((logDir, brokerMetadata) <- brokerMetadataMap)
@@ -855,6 +896,7 @@ class KafkaServer(val config: KafkaConfig, time: Time = Time.SYSTEM, threadNameP
         s"or partial data was manually copied from another broker. Found:\n${builder.toString()}"
       )
     } else if (brokerMetadataSet.size == 1)
+    // TODO: 预期结果 (BrokerMetadata(brokerId, clusterId), offlineDirs)
       (brokerMetadataSet.last, offlineDirs)
     else
       (BrokerMetadata(-1, None), offlineDirs)
@@ -884,16 +926,20 @@ class KafkaServer(val config: KafkaConfig, time: Time = Time.SYSTEM, threadNameP
    * @return The brokerId.
    */
   private def getOrGenerateBrokerId(brokerMetadata: BrokerMetadata): Int = {
+    // TODO: 从配置中获取brokerId
     val brokerId = config.brokerId
 
+    // TODO: 如果配置的brokerId和brokerMetadata中的brokerId不一致，抛出  InconsistentBrokerIdException 异常
     if (brokerId >= 0 && brokerMetadata.brokerId >= 0 && brokerMetadata.brokerId != brokerId)
       throw new InconsistentBrokerIdException(
         s"Configured broker.id $brokerId doesn't match stored broker.id ${brokerMetadata.brokerId} in meta.properties. " +
         s"If you moved your data, make sure your configured broker.id matches. " +
         s"If you intend to create a new broker, you should remove all data in your data directories (log.dirs).")
     else if (brokerMetadata.brokerId < 0 && brokerId < 0 && config.brokerIdGenerationEnable) // generate a new brokerId from Zookeeper
+    // TODO: 自动生成brokerId
       generateBrokerId
     else if (brokerMetadata.brokerId >= 0) // pick broker.id from meta.properties
+    // TODO: 如果我们没有在配置中配置，并且metadata中又存在，则使用metadata中的brokerId
       brokerMetadata.brokerId
     else
       brokerId
@@ -906,6 +952,8 @@ class KafkaServer(val config: KafkaConfig, time: Time = Time.SYSTEM, threadNameP
     */
   private def generateBrokerId: Int = {
     try {
+      // TODO: 从zk的路径 /brokers/seqid 获取version， 再加上1000，组成broker id。
+      //  reserved.broker.max.id=1000 默认值
       zkClient.generateBrokerSequenceId() + config.maxReservedBrokerId
     } catch {
       case e: Exception =>

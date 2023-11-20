@@ -32,6 +32,7 @@ import org.slf4j.spi.LocationAwareLogger;
  */
 public class LogContext {
 
+    // TODO: 11/20/23 log 前缀： [KafkaServer id=1001]
     private final String logPrefix;
 
     public LogContext(String logPrefix) {

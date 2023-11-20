@@ -101,10 +101,15 @@ public class AbstractConfig {
     public AbstractConfig(ConfigDef definition, Map<?, ?> originals,  Map<String, ?> configProviderProps, boolean doLog) {
         /* check that all the keys are really strings */
         for (Map.Entry<?, ?> entry : originals.entrySet())
+            // TODO: 11/20/23 所有的用户自定义的key都需要是字符串形式
             if (!(entry.getKey() instanceof String))
                 throw new ConfigException(entry.getKey().toString(), entry.getValue(), "Key must be a string.");
 
+        // TODO: 11/20/23  configProviderProps - emptyMap
+        // TODO: 11/20/23  originals 用户自定义配置
+        // TODO: 11/20/23 this.originals = (resolvedOriginals, originals) 其中 originals=resolvedOriginals
         this.originals = resolveConfigVariables(configProviderProps, (Map<String, Object>) originals);
+        // TODO: 11/20/23 含有用户自定义的配置
         this.values = definition.parse(this.originals);
         this.used = Collections.synchronizedSet(new HashSet<>());
         Map<String, Object> configUpdates = postProcessParsedConfig(Collections.unmodifiableMap(this.values));
@@ -139,6 +144,8 @@ public class AbstractConfig {
      * @param doLog whether the configurations should be logged
      */
     public AbstractConfig(ConfigDef definition, Map<?, ?> originals, boolean doLog) {
+        // TODO: 11/20/23  definition - kafka内部的配置
+        // TODO: 11/20/23  originals - 用户自定义配置
         this(definition, originals, Collections.emptyMap(), doLog);
 
     }
@@ -468,8 +475,8 @@ public class AbstractConfig {
     /**
      * Instantiates given list of config providers and fetches the actual values of config variables from the config providers.
      * returns a map of config key and resolved values.
-     * @param configProviderProps The map of config provider configs
-     * @param originals The map of raw configs.
+     * @param configProviderProps The map of config provider configs - emptyMap
+     * @param originals The map of raw configs. - 用户自定义配置
      * @return map of resolved config variable.
      */
     @SuppressWarnings("unchecked")
@@ -481,13 +488,16 @@ public class AbstractConfig {
         Map<String, String> indirectVariables = extractPotentialVariables(originals);
 
         resolvedOriginals.putAll(originals);
+        // TODO: 11/20/23  此时 configProviderProps 为empty
         if (configProviderProps == null || configProviderProps.isEmpty()) {
+            // TODO: 11/20/23 用户自定义 配置 <key, value> 形式
             providerConfigString = indirectVariables;
             configProperties = originals;
         } else {
             providerConfigString = extractPotentialVariables(configProviderProps);
             configProperties = configProviderProps;
         }
+        // TODO: 11/20/23 默认为空
         Map<String, ConfigProvider> providers = instantiateConfigProviders(providerConfigString, configProperties);
 
         if (!providers.isEmpty()) {
@@ -524,6 +534,7 @@ public class AbstractConfig {
      * @return map map of config provider name and its instance.
      */
     private Map<String, ConfigProvider> instantiateConfigProviders(Map<String, String> indirectConfigs, Map<String, ?> providerConfigProperties) {
+        // TODO: 11/20/23  config.providers，默认为空
         final String configProviders = indirectConfigs.get(CONFIG_PROVIDERS_CONFIG);
 
         if (configProviders == null || configProviders.isEmpty()) {
