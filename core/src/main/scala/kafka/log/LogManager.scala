@@ -84,7 +84,10 @@ class LogManager(logDirs: Seq[File],
 
   // TODO: /mnt/ssd/0/kafka/,/mnt/ssd/1/kafka/,/mnt/ssd/2/kafka/
   private val _liveLogDirs: ConcurrentLinkedQueue[File] = createAndValidateLogDirs(logDirs, initialOfflineDirs)
+  // TODO: 使用了volatile 关键字，对其他线程可见，  _currentDefaultConfig为默认的配置，该配置是从配置文件中读取，
+  //  用户自定义的配置会覆盖该配置
   @volatile private var _currentDefaultConfig = initialDefaultConfig
+  // TODO: 每个数据盘 恢复线程数，主要是kafka启动和关闭的时候，默认为1
   @volatile private var numRecoveryThreadsPerDataDir = recoveryThreadsPerDataDir
 
   // This map contains all partitions whose logs are getting loaded and initialized. If log configuration
@@ -94,10 +97,12 @@ class LogManager(logDirs: Seq[File],
   // Visible for testing
   private[log] val partitionsInitializing = new ConcurrentHashMap[TopicPartition, Boolean]().asScala
 
+  // TODO: 更新默认配置
   def reconfigureDefaultLogConfig(logConfig: LogConfig): Unit = {
     this._currentDefaultConfig = logConfig
   }
 
+  // TODO: 获取默认配置
   def currentDefaultConfig: LogConfig = _currentDefaultConfig
 
   def liveLogDirs: Seq[File] = {
@@ -107,20 +112,32 @@ class LogManager(logDirs: Seq[File],
       _liveLogDirs.asScala.toBuffer
   }
 
+  // TODO: 锁
   private val dirLocks = lockLogDirs(liveLogDirs)
+  // TODO: recovery-point-offset-checkpoint 文件
+  // TODO: <File("/mnt/ssd/0/kafka/"), OffsetCheckpointFile("/mnt/ssd/0/kafka/recovery-point-offset-checkpoint")>
+  // TODO: <File("/mnt/ssd/1/kafka/"), OffsetCheckpointFile("/mnt/ssd/1/kafka/recovery-point-offset-checkpoint")>
   @volatile private var recoveryPointCheckpoints = liveLogDirs.map(dir =>
     (dir, new OffsetCheckpointFile(new File(dir, RecoveryPointCheckpointFile), logDirFailureChannel))).toMap
+  // TODO: log-start-offset-checkpoint 文件
+  // TODO: <File("/mnt/ssd/0/kafka/"), OffsetCheckpointFile("/mnt/ssd/0/kafka/log-start-offset-checkpoint")>
+  // TODO: <File("/mnt/ssd/1/kafka/"), OffsetCheckpointFile("/mnt/ssd/1/kafka/log-start-offset-checkpoint")>
   @volatile private var logStartOffsetCheckpoints = liveLogDirs.map(dir =>
     (dir, new OffsetCheckpointFile(new File(dir, LogStartOffsetCheckpointFile), logDirFailureChannel))).toMap
 
+  // TODO: preferred log dirs 
   private val preferredLogDirs = new ConcurrentHashMap[TopicPartition, String]()
 
   private def offlineLogDirs: Iterable[File] = {
+    // TODO: 把logDirs里面的File全部放入到Set集合里面
     val logDirsSet = mutable.Set[File]() ++= logDirs
+    // TODO: 遍历 _liveLogDirs，把包含在logDirsSet里面的dir File移除
     _liveLogDirs.forEach(dir => logDirsSet -= dir)
+    // TODO: 剩下的就是Offline的log dir File了
     logDirsSet
   }
 
+  // TODO: 加载磁盘上面的log
   loadLogs()
 
   private[kafka] val cleaner: LogCleaner =
@@ -177,13 +194,14 @@ class LogManager(logDirs: Seq[File],
         if (!canonicalPaths.add(dir.getCanonicalPath))
           throw new KafkaException(s"Duplicate log directory found: ${dirs.mkString(", ")}")
 
-
+        // TODO: 排除了Exception的dir，剩下的就是 liveLogDir了 
         liveLogDirs.add(dir)
       } catch {
         case e: IOException =>
           logDirFailureChannel.maybeAddOfflineLogDir(dir.getAbsolutePath, s"Failed to create or validate data directory ${dir.getAbsolutePath}", e)
       }
     }
+    // TODO: 如果LiveLogDirs为空，说明没有一个可用磁盘存放log，退出Kafka 服务 
     if (liveLogDirs.isEmpty) {
       fatal(s"Shutdown broker because none of the specified log dirs from ${dirs.mkString(", ")} can be created or validated")
       Exit.halt(1)
@@ -259,41 +277,59 @@ class LogManager(logDirs: Seq[File],
   }
 
   private def addLogToBeDeleted(log: Log): Unit = {
+    // TODO: File(/mnt/ssd/1/kafka/test08075-0-delete)
     this.logsToBeDeleted.add((log, time.milliseconds()))
   }
 
   // Only for testing
   private[log] def hasLogsToBeDeleted: Boolean = !logsToBeDeleted.isEmpty
 
+  // TODO: 加载log文件
+  // TODO:  logDir=File(/mnt/ssd/1/kafka/test08075-0)
+  // TODO:  recoveryPoints = <TopicPartition(test08075, 0), 0>
+  // TODO:  logStartOffsets = <TopicPartition(test08075, 0), 10>
   private def loadLog(logDir: File,
                       recoveryPoints: Map[TopicPartition, Long],
                       logStartOffsets: Map[TopicPartition, Long]): Log = {
+    // TODO: TopicPartition("test08075", 0)
     val topicPartition = Log.parseTopicPartitionName(logDir)
+    // TODO: test08075 所对应的配置信息
     val config = topicConfigs.getOrElse(topicPartition.topic, currentDefaultConfig)
+    // TODO: 0 
     val logRecoveryPoint = recoveryPoints.getOrElse(topicPartition, 0L)
+    // TODO: 10 
     val logStartOffset = logStartOffsets.getOrElse(topicPartition, 0L)
 
+    // TODO: 构建 Log 实例
     val log = Log(
-      dir = logDir,
+      dir = logDir, // todo File(/mnt/ssd/1/kafka/test08075-0)
       config = config,
-      logStartOffset = logStartOffset,
-      recoveryPoint = logRecoveryPoint,
-      maxProducerIdExpirationMs = maxPidExpirationMs,
-      producerIdExpirationCheckIntervalMs = LogManager.ProducerIdExpirationCheckIntervalMs,
-      scheduler = scheduler,
+      logStartOffset = logStartOffset, // todo 10
+      recoveryPoint = logRecoveryPoint, // todo 0
+      maxProducerIdExpirationMs = maxPidExpirationMs, // todo 7-days
+      producerIdExpirationCheckIntervalMs = LogManager.ProducerIdExpirationCheckIntervalMs, // todo 10 mins
+      scheduler = scheduler, // TODO: kafka的10个线程的线程池，后台运行 
       time = time,
-      brokerTopicStats = brokerTopicStats,
+      brokerTopicStats = brokerTopicStats, // TODO: broker topic 状态信息 
       logDirFailureChannel = logDirFailureChannel)
 
+    // TODO: 判断是否标记为 -delete 的文件  
     if (logDir.getName.endsWith(Log.DeleteDirSuffix)) {
+      // TODO: 加入到 即将被删除的队列 
       addLogToBeDeleted(log)
     } else {
+      // TODO: File(/mnt/ssd/1/kafka/test08075-0) 
       val previous = {
+        // TODO: 是否标记为 -future 的文件 ，这里不是这样的文件
         if (log.isFuture)
           this.futureLogs.put(topicPartition, log)
         else
+        // TODO: 那么，就会 放入到 currentLogs里面， <TopicPartition(test08075, 0), log> , 然后返回 log对象给 previous，
+        //  previous一定不为null
           this.currentLogs.put(topicPartition, log)
       }
+
+      // TODO: previous 变量 即为 log，一定不为空，那么这里就一定会抛出异常 IllegalStateException， why？
       if (previous != null) {
         if (log.isFuture)
           throw new IllegalStateException(s"Duplicate log directories found: ${log.dir.getAbsolutePath}, ${previous.dir.getAbsolutePath}")
@@ -305,6 +341,7 @@ class LogManager(logDirs: Seq[File],
       }
     }
 
+    // TODO: 返回log对象
     log
   }
 
@@ -312,39 +349,59 @@ class LogManager(logDirs: Seq[File],
    * Recover and load all logs in the given data directories
    */
   private def loadLogs(): Unit = {
+    // TODO: 开始加载log数据
     info(s"Loading logs from log dirs $liveLogDirs")
+    // TODO: 记录开始时间
     val startMs = time.hiResClockMs()
+    // TODO: 线程池
     val threadPools = ArrayBuffer.empty[ExecutorService]
+    // TODO: 记录offline的路径
     val offlineDirs = mutable.Set.empty[(String, IOException)]
     val jobs = mutable.Map.empty[File, Seq[Future[_]]]
+    // TODO: log数量记录
     var numTotalLogs = 0
 
+    // TODO: 遍历全部的live log日志目录 /mnt/ssd/0/kafka/,/mnt/ssd/1/kafka/,/mnt/ssd/2/kafka/
     for (dir <- liveLogDirs) {
+      // TODO: dir 绝对路径 /mnt/ssd/0/kafka/
       val logDirAbsolutePath = dir.getAbsolutePath
       try {
+        // TODO: 创建 newFixedThreadPool 实例， numRecoveryThreadsPerDataDir 默认为1
         val pool = Executors.newFixedThreadPool(numRecoveryThreadsPerDataDir)
         threadPools.append(pool)
 
+        // TODO: /mnt/ssd/0/kafka/.kafka_cleanshutdown
         val cleanShutdownFile = new File(dir, Log.CleanShutdownFile)
+        // TODO: 如果 .kafka_cleanshutdown  文件存在
         if (cleanShutdownFile.exists) {
           info(s"Skipping recovery for all logs in $logDirAbsolutePath since clean shutdown file was found")
         } else {
           // log recovery itself is being performed by `Log` class during initialization
           info(s"Attempting recovery for all logs in $logDirAbsolutePath since no clean shutdown file was found")
+          // TODO: 标记broker状态为 RecoveringFromUncleanShutdown
           brokerState.newState(RecoveringFromUncleanShutdown)
         }
 
         var recoveryPoints = Map[TopicPartition, Long]()
         try {
+          // TODO: <File("/mnt/ssd/0/kafka/"), OffsetCheckpointFile("/mnt/ssd/0/kafka/recovery-point-offset-checkpoint")>
+          //  tp1  par1  1     <- the format is: TOPIC  PARTITION  OFFSET
+          //  tp1  par2  2
+          //  <TopicPartition, Offset>
           recoveryPoints = this.recoveryPointCheckpoints(dir).read()
         } catch {
           case e: Exception =>
+            // TODO: 如果出现exception，那么这里就会把offset设置为0
             warn(s"Error occurred while reading recovery-point-offset-checkpoint file of directory " +
               s"$logDirAbsolutePath, resetting the recovery checkpoint to 0", e)
         }
 
         var logStartOffsets = Map[TopicPartition, Long]()
         try {
+          // TODO: <File("/mnt/ssd/1/kafka/"), OffsetCheckpointFile("/mnt/ssd/1/kafka/log-start-offset-checkpoint")>
+          //  tp1  par1  1     <- the format is: TOPIC  PARTITION  OFFSET
+          //  tp1  par2  2
+          //  <TopicPartition, Offset>
           logStartOffsets = this.logStartOffsetCheckpoints(dir).read()
         } catch {
           case e: Exception =>
@@ -352,17 +409,45 @@ class LogManager(logDirs: Seq[File],
               s"$logDirAbsolutePath, resetting to the base offset of the first segment", e)
         }
 
+        // TODO: /mnt/ssd/1/kafka/
+        /**
+         *
+         *  下面是 Directory，格式为： topic_name-partitionNum
+         *  __consumer_offsets-16
+            __consumer_offsets-31
+            __consumer_offsets-4
+            __transaction_state-35
+            __transaction_state-8
+            test08075-0
+            test08075-2
+
+            下面是File
+            cleaner-offset-checkpoint
+            log-start-offset-checkpoint
+            meta.properties
+            recovery-point-offset-checkpoint
+            replication-offset-checkpoint
+         */
+        // TODO:  加载 /mnt/ssd/1/kafka/ 目录下面所有的 目录夹文件，该文件夹文件是 topic_name-partitionNum
         val logsToLoad = Option(dir.listFiles).getOrElse(Array.empty).filter(_.isDirectory)
         val numLogsLoaded = new AtomicInteger(0)
+        // TODO: log数量 ，以上面为例： 7
         numTotalLogs += logsToLoad.length
 
+        // TODO: logDir=/mnt/ssd/1/kafka/test08075-0
         val jobsForDir = logsToLoad.map { logDir =>
+          // TODO: 创建 Runnable 对象
           val runnable: Runnable = () => {
             try {
               debug(s"Loading log $logDir")
 
+              // TODO: 记录加载log开始时间
               val logLoadStartMs = time.hiResClockMs()
+              // TODO: logDir=/mnt/ssd/1/kafka/test08075-0
+              // TODO:  recoveryPoints = <TopicPartition(test08075, 0), 0>
+              // TODO:  logStartOffsets = <TopicPartition(test08075, 0), 10>
               val log = loadLog(logDir, recoveryPoints, logStartOffsets)
+              // TODO: log加载时间
               val logLoadDurationMs = time.hiResClockMs() - logLoadStartMs
               val currentNumLoaded = numLogsLoaded.incrementAndGet()
 
@@ -374,6 +459,7 @@ class LogManager(logDirs: Seq[File],
                 error(s"Error while loading log dir $logDirAbsolutePath", e)
             }
           }
+          // TODO: 返回Runnable 对象实例
           runnable
         }
 

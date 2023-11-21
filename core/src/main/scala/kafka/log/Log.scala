@@ -2555,17 +2555,24 @@ object Log {
 
   val UnknownOffset = -1L
 
-  def apply(dir: File,
+  def apply(dir: File, // todo File(/mnt/ssd/1/kafka/test08075-0)
             config: LogConfig,
             logStartOffset: Long,
             recoveryPoint: Long,
             scheduler: Scheduler,
             brokerTopicStats: BrokerTopicStats,
             time: Time = Time.SYSTEM,
-            maxProducerIdExpirationMs: Int,
+            maxProducerIdExpirationMs: Int, // TODO: 7-days by default
             producerIdExpirationCheckIntervalMs: Int,
             logDirFailureChannel: LogDirFailureChannel): Log = {
+    // TODO: TopicPartition("test08075", 0)
     val topicPartition = Log.parseTopicPartitionName(dir)
+    // TODO: 创建 ProducerStateManager 实例, kafka会为每一个 dir 文件创建一个 producerStateManager，
+    //  这个manager会缓存很多producer实例， 每个producer会有最多5个 ProducerStateEntry，
+    //  1. 为什么要缓存这些producer呢？
+    //   - 主要是为了幂等功能
+    //  2. 缓存很多的producer，如果在maxProducerIdExpirationMs时间里面，没有来得及及时清理，会出现OOM
+    //   - 这个时候可以降低 maxProducerIdExpirationMs 的值，maxProducerIdExpirationMs=24h 也是可以满足多数场景
     val producerStateManager = new ProducerStateManager(topicPartition, dir, maxProducerIdExpirationMs)
     new Log(dir, config, logStartOffset, recoveryPoint, scheduler, brokerTopicStats, time, maxProducerIdExpirationMs,
       producerIdExpirationCheckIntervalMs, topicPartition, producerStateManager, logDirFailureChannel)
@@ -2692,6 +2699,7 @@ object Log {
   /**
    * Parse the topic and partition out of the directory name of a log
    */
+  // TODO: dir=File(/mnt/ssd/1/kafka/test08075-0) 
   def parseTopicPartitionName(dir: File): TopicPartition = {
     if (dir == null)
       throw new KafkaException("dir should not be null")
@@ -2702,27 +2710,34 @@ object Log {
         "Kafka's log directories (and children) should only contain Kafka topic data.")
     }
 
+    // TODO:  dirName=test08075-0
     val dirName = dir.getName
     if (dirName == null || dirName.isEmpty || !dirName.contains('-'))
       throw exception(dir)
+    // TODO: 判断是否为 -delete， -future 文件， 
     if (dirName.endsWith(DeleteDirSuffix) && !DeleteDirPattern.matcher(dirName).matches ||
         dirName.endsWith(FutureDirSuffix) && !FutureDirPattern.matcher(dirName).matches)
       throw exception(dir)
 
     val name: String =
       if (dirName.endsWith(DeleteDirSuffix) || dirName.endsWith(FutureDirSuffix)) dirName.substring(0, dirName.lastIndexOf('.'))
-      else dirName
+      else dirName // TODO: test08075-0 
 
+    // TODO: ["test08075","0"] 使用'-' 分开即可
     val index = name.lastIndexOf('-')
+    // TODO: test08075 
     val topic = name.substring(0, index)
+    // TODO: 0 
     val partitionString = name.substring(index + 1)
     if (topic.isEmpty || partitionString.isEmpty)
       throw exception(dir)
 
+    // TODO: 0 
     val partition =
       try partitionString.toInt
       catch { case _: NumberFormatException => throw exception(dir) }
 
+    // TODO: TopicPartition("test08075", 0)
     new TopicPartition(topic, partition)
   }
 

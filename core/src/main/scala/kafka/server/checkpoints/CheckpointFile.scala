@@ -41,6 +41,16 @@ class CheckpointReadBuffer[T](location: String,
     def malformedLineException(line: String) =
       new IOException(s"Malformed line in checkpoint file ($location): '$line'")
 
+    /*
+    * The format in the offset checkpoint file is like this:
+    *  -----checkpoint file begin------
+    *  0                <- OffsetCheckpointFile.currentVersion
+    *  2                <- following entries size
+    *  tp1  par1  1     <- the format is: TOPIC  PARTITION  OFFSET
+    *  tp1  par2  2
+    *  -----checkpoint file end----------
+    * todo 按照这样的格式进行读取
+     */
     var line: String = null
     try {
       line = reader.readLine()
@@ -80,24 +90,38 @@ class CheckpointFile[T](val file: File,
                         formatter: CheckpointFileFormatter[T],
                         logDirFailureChannel: LogDirFailureChannel,
                         logDir: String) extends Logging {
+  // TODO: /mnt/ssd/0/kafka/recovery-point-offset-checkpoint
   private val path = file.toPath.toAbsolutePath
+  // TODO: /mnt/ssd/0/kafka/recovery-point-offset-checkpoint.tmp
   private val tempPath = Paths.get(path.toString + ".tmp")
   private val lock = new Object()
 
+  // TODO:  试图创建 /mnt/ssd/0/kafka/recovery-point-offset-checkpoint
   try Files.createFile(file.toPath) // create the file if it doesn't exist
   catch { case _: FileAlreadyExistsException => }
 
   def write(entries: Iterable[T]): Unit = {
+    /*
+    * The format in the offset checkpoint file is like this:
+    *  -----checkpoint file begin------
+    *  0                <- OffsetCheckpointFile.currentVersion
+    *  2                <- following entries size
+    *  tp1  par1  1     <- the format is: TOPIC  PARTITION  OFFSET
+    *  tp1  par2  2
+    *  -----checkpoint file end----------
+    * todo 按照这样的格式进行写入
+     */
     lock synchronized {
       try {
+        // TODO: 先写入 /mnt/ssd/0/kafka/recovery-point-offset-checkpoint.tmp
         // write to temp file and then swap with the existing file
         val fileOutputStream = new FileOutputStream(tempPath.toFile)
         val writer = new BufferedWriter(new OutputStreamWriter(fileOutputStream, StandardCharsets.UTF_8))
         try {
-          writer.write(version.toString)
+          writer.write(version.toString) // todo 0
           writer.newLine()
 
-          writer.write(entries.size.toString)
+          writer.write(entries.size.toString) // todo following entries size
           writer.newLine()
 
           entries.foreach { entry =>
@@ -111,6 +135,7 @@ class CheckpointFile[T](val file: File,
           writer.close()
         }
 
+        // TODO: 再拷贝到 /mnt/ssd/0/kafka/recovery-point-offset-checkpoint 文件
         Utils.atomicMoveWithFallback(tempPath, path)
       } catch {
         case e: IOException =>
@@ -122,8 +147,10 @@ class CheckpointFile[T](val file: File,
   }
 
   def read(): Seq[T] = {
+    // TODO: 同步锁
     lock synchronized {
       try {
+        // TODO: 读取/mnt/ssd/0/kafka/recovery-point-offset-checkpoint 文件
         val reader = Files.newBufferedReader(path)
         try {
           val checkpointBuffer = new CheckpointReadBuffer[T](file.getAbsolutePath, reader, version, formatter)
