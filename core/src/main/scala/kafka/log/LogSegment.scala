@@ -53,13 +53,13 @@ import scala.math._
  * @param time The time instance
  */
 @nonthreadsafe
-class LogSegment private[log] (val log: FileRecords,
-                               val lazyOffsetIndex: LazyIndex[OffsetIndex],
-                               val lazyTimeIndex: LazyIndex[TimeIndex],
-                               val txnIndex: TransactionIndex,
-                               val baseOffset: Long,
-                               val indexIntervalBytes: Int,
-                               val rollJitterMs: Long,
+class LogSegment private[log] (val log: FileRecords,                         // todo File(/mnt/ssd/1/kafka/test08075-0/00000000000000000115.log)
+                               val lazyOffsetIndex: LazyIndex[OffsetIndex],  // todo 00000000000000000115.index
+                               val lazyTimeIndex: LazyIndex[TimeIndex],      // todo 00000000000000000115.timeindex
+                               val txnIndex: TransactionIndex,               // todo 00000000000000000115.txnindex
+                               val baseOffset: Long,                         // todo 115
+                               val indexIntervalBytes: Int,                  // todo 4096
+                               val rollJitterMs: Long,                       // todo 0
                                val time: Time) extends Logging {
 
   def offsetIndex: OffsetIndex = lazyOffsetIndex.get
@@ -659,11 +659,18 @@ object LogSegment {
 
   def open(dir: File, baseOffset: Long, config: LogConfig, time: Time, fileAlreadyExists: Boolean = false,
            initFileSize: Int = 0, preallocate: Boolean = false, fileSuffix: String = ""): LogSegment = {
+    // TODO: 10MB
     val maxIndexSize = config.maxIndexSize
+    // TODO: 创建 LogSegment实例
     new LogSegment(
+      // TODO: baseOffset=115
+      // TODO: File(/mnt/ssd/1/kafka/test08075-0/00000000000000000115.log) , fileAlreadyExists=true
       FileRecords.open(Log.logFile(dir, baseOffset, fileSuffix), fileAlreadyExists, initFileSize, preallocate),
+      // TODO: 00000000000000000115.index
       LazyIndex.forOffset(Log.offsetIndexFile(dir, baseOffset, fileSuffix), baseOffset = baseOffset, maxIndexSize = maxIndexSize),
+      // TODO: 00000000000000000115.timeindex
       LazyIndex.forTime(Log.timeIndexFile(dir, baseOffset, fileSuffix), baseOffset = baseOffset, maxIndexSize = maxIndexSize),
+      // TODO: 创建 00000000000000000115.txnindex 事务相关
       new TransactionIndex(baseOffset, Log.transactionIndexFile(dir, baseOffset, fileSuffix)),
       baseOffset,
       indexIntervalBytes = config.indexInterval,

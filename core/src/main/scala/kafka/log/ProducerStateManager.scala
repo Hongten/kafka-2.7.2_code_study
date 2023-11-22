@@ -411,6 +411,7 @@ object ProducerStateManager {
   }
 
   private def writeSnapshot(file: File, entries: mutable.Map[Long, ProducerStateEntry]): Unit = {
+    // TODO: 构建
     val struct = new Struct(PidSnapshotMapSchema)
     struct.set(VersionField, ProducerSnapshotVersion)
     struct.set(CrcField, 0L) // we'll fill this after writing the entries
@@ -481,14 +482,16 @@ object ProducerStateManager {
  * been deleted.
  */
 @nonthreadsafe
-class ProducerStateManager(val topicPartition: TopicPartition,
-                           @volatile var logDir: File,
-                           val maxProducerIdExpirationMs: Int = 60 * 60 * 1000) extends Logging {
+class ProducerStateManager(val topicPartition: TopicPartition, // todo TopicPartition("test08075", 0)
+                           @volatile var logDir: File, //         todo File(/mnt/ssd/1/kafka/test08075-0)
+                           val maxProducerIdExpirationMs: Int = 60 * 60 * 1000) // TODO: 7-days by default
+  extends Logging {
   import ProducerStateManager._
   import java.util
 
   this.logIdent = s"[ProducerStateManager partition=$topicPartition] "
 
+  // TODO: 缓存所有的producer信息 <producerId, ProducerStateEntry>
   private val producers = mutable.Map.empty[Long, ProducerStateEntry]
   private var lastMapOffset = 0L
   private var lastSnapOffset = 0L
@@ -656,8 +659,10 @@ class ProducerStateManager(val topicPartition: TopicPartition,
   def takeSnapshot(): Unit = {
     // If not a new offset, then it is not worth taking another snapshot
     if (lastMapOffset > lastSnapOffset) {
+      // TODO: 00000000000000000115.snapshot
       val snapshotFile = Log.producerSnapshotFile(logDir, lastMapOffset)
       info(s"Writing producer snapshot at offset $lastMapOffset")
+      // TODO: 写文件
       writeSnapshot(snapshotFile, producers)
 
       // Update the last snap offset according to the serialized map

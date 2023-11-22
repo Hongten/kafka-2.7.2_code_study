@@ -40,12 +40,21 @@ import scala.jdk.CollectionConverters._
  */
 class LeaderEpochFileCache(topicPartition: TopicPartition,
                            logEndOffset: () => Long,
-                           checkpoint: LeaderEpochCheckpoint) extends Logging {
+                           checkpoint: LeaderEpochCheckpoint) // todo File(/mnt/ssd/1/kafka/test08075-0/leader-epoch-checkpoint)
+  extends Logging {
+  // TODO: [LeaderEpochCache test08075-0]
   this.logIdent = s"[LeaderEpochCache $topicPartition] "
 
   private val lock = new ReentrantReadWriteLock()
   private val epochs = new util.TreeMap[Int, EpochEntry]()
 
+  // TODO: 读取File(/mnt/ssd/1/kafka/test08075-0/leader-epoch-checkpoint)
+  /**
+   * cat /mnt/ssd/1/kafka/test08075-0/leader-epoch-checkpoint
+   * 0
+     1
+     8 115
+   */
   inWriteLock(lock) {
     checkpoint.read().foreach(assign)
   }
@@ -63,6 +72,7 @@ class LeaderEpochFileCache(topicPartition: TopicPartition,
   }
 
   private def assign(entry: EpochEntry): Boolean = {
+    // TODO: 校验entry合法性
     if (entry.epoch < 0 || entry.startOffset < 0) {
       throw new IllegalArgumentException(s"Received invalid partition leader epoch entry $entry")
     }
@@ -70,6 +80,7 @@ class LeaderEpochFileCache(topicPartition: TopicPartition,
     def isUpdateNeeded: Boolean = {
       latestEntry match {
         case Some(lastEntry) =>
+          // TODO: 格式： 8 115
           entry.epoch != lastEntry.epoch || entry.startOffset < lastEntry.startOffset
         case None =>
           true
@@ -294,6 +305,7 @@ class LeaderEpochFileCache(topicPartition: TopicPartition,
 
 }
 
+// TODO: 格式： 8 115
 // Mapping of epoch to the first offset of the subsequent epoch
 case class EpochEntry(epoch: Int, startOffset: Long) {
   override def toString: String = {

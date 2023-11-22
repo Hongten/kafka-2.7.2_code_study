@@ -34,6 +34,7 @@ object LeaderEpochCheckpointFile {
   private val WhiteSpacesPattern = Pattern.compile("\\s+")
   private val CurrentVersion = 0
 
+  // TODO: 只是创建 File 实例，并不保证去创建该文件
   def newFile(dir: File): File = new File(dir, LeaderEpochCheckpointFilename)
 
   object Formatter extends CheckpointFileFormatter[EpochEntry] {
@@ -61,6 +62,13 @@ object LeaderEpochCheckpointFile {
  * 0  1     <- the format is: leader_epoch(int32) start_offset(int64)
  * 1  2
  * -----checkpoint file end----------
+ */
+
+/**
+ * cat /mnt/ssd/1/kafka/test08075-0/leader-epoch-checkpoint
+ * 0
+   1
+   8 115
  */
 class LeaderEpochCheckpointFile(val file: File, logDirFailureChannel: LogDirFailureChannel = null) extends LeaderEpochCheckpoint {
   import LeaderEpochCheckpointFile._

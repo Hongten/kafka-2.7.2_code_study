@@ -103,6 +103,7 @@ class LazyIndex[T <: AbstractIndex] private (@volatile private var indexWrapper:
 object LazyIndex {
 
   def forOffset(file: File, baseOffset: Long, maxIndexSize: Int = -1, writable: Boolean = true): LazyIndex[OffsetIndex] =
+  // TODO: 创建 00000000000000000115.index  文件
     new LazyIndex(new IndexFile(file), file => new OffsetIndex(file, baseOffset, maxIndexSize, writable))
 
   def forTime(file: File, baseOffset: Long, maxIndexSize: Int = -1, writable: Boolean = true): LazyIndex[TimeIndex] =

@@ -208,6 +208,10 @@ object CoreUtils {
    * Replace the given string suffix with the new suffix. If the string doesn't end with the given suffix throw an exception.
    */
   def replaceSuffix(s: String, oldSuffix: String, newSuffix: String): String = {
+    // TODO: s = 00000000000000000115.timeindex.swap
+    // TODO: oldSuffix = .swap
+    // TODO: newSuffix = ""
+    // TODO: return 00000000000000000115.timeindex
     if(!s.endsWith(oldSuffix))
       throw new IllegalArgumentException("Expected string to end with '%s' but string is '%s'".format(oldSuffix, s))
     s.substring(0, s.length - oldSuffix.length) + newSuffix

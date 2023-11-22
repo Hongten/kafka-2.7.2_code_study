@@ -61,11 +61,11 @@ public class FileRecords extends AbstractRecords implements Closeable {
                 int start,
                 int end,
                 boolean isSlice) throws IOException {
-        this.file = file;
+        this.file = file; // file=File(/mnt/ssd/1/kafka/test08075-0/00000000000000000115.log)
         this.channel = channel;
-        this.start = start;
-        this.end = end;
-        this.isSlice = isSlice;
+        this.start = start; // 0
+        this.end = end; // Integer.MAX_VALUE
+        this.isSlice = isSlice; // false
         this.size = new AtomicInteger();
 
         if (isSlice) {
@@ -76,7 +76,9 @@ public class FileRecords extends AbstractRecords implements Closeable {
                 throw new KafkaException("The size of segment " + file + " (" + channel.size() +
                         ") is larger than the maximum allowed segment size of " + Integer.MAX_VALUE);
 
+            // TODO: 11/22/23 文件的大小
             int limit = Math.min((int) channel.size(), end);
+            // TODO: 11/22/23 size就是 log文件的大小
             size.set(limit - start);
 
             // if this is not a slice, update the file pointer to the end of the file
@@ -402,24 +404,30 @@ public class FileRecords extends AbstractRecords implements Closeable {
             end = this.end;
         else
             end = this.sizeInBytes();
+        // TODO: 11/22/23 创建  FileLogInputStream 实例
         FileLogInputStream inputStream = new FileLogInputStream(this, start, end);
         return new RecordBatchIterator<>(inputStream);
     }
 
     public static FileRecords open(File file,
-                                   boolean mutable,
-                                   boolean fileAlreadyExists,
-                                   int initFileSize,
-                                   boolean preallocate) throws IOException {
+                                   boolean mutable, // true
+                                   boolean fileAlreadyExists, //true
+                                   int initFileSize, //1
+                                   boolean preallocate)// true
+            throws IOException {
+        // TODO: 11/22/23 file=File(/mnt/ssd/1/kafka/test08075-0/00000000000000000115.log)
         FileChannel channel = openChannel(file, mutable, fileAlreadyExists, initFileSize, preallocate);
         int end = (!fileAlreadyExists && preallocate) ? 0 : Integer.MAX_VALUE;
+                // TODO: 11/22/23 创建 FileRecords 实例 ， 读取 .log文件, 返回 FileRecords实例
         return new FileRecords(file, channel, 0, end, false);
     }
 
     public static FileRecords open(File file,
-                                   boolean fileAlreadyExists,
-                                   int initFileSize,
-                                   boolean preallocate) throws IOException {
+                                   boolean fileAlreadyExists,// true
+                                   int initFileSize, //0
+                                   boolean preallocate) //false
+            throws IOException {
+        // TODO: 11/22/23 file= File(/mnt/ssd/1/kafka/test08075-0/00000000000000000115.log)
         return open(file, true, fileAlreadyExists, initFileSize, preallocate);
     }
 
@@ -442,12 +450,14 @@ public class FileRecords extends AbstractRecords implements Closeable {
      * @param preallocate Pre-allocate file or not, gotten from configuration.
      */
     private static FileChannel openChannel(File file,
-                                           boolean mutable,
-                                           boolean fileAlreadyExists,
-                                           int initFileSize,
-                                           boolean preallocate) throws IOException {
+                                           boolean mutable,// ture
+                                           boolean fileAlreadyExists,// ture
+                                           int initFileSize,// 1
+                                           boolean preallocate)// true
+            throws IOException {
         if (mutable) {
             if (fileAlreadyExists || !preallocate) {
+                // TODO: 11/22/23 file=File(/mnt/ssd/1/kafka/test08075-0/00000000000000000115.log)
                 return FileChannel.open(file.toPath(), StandardOpenOption.CREATE, StandardOpenOption.READ,
                         StandardOpenOption.WRITE);
             } else {

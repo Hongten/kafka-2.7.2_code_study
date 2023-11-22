@@ -233,21 +233,22 @@ case object SegmentDeletion extends LogStartOffsetIncrementReason {
  * @param producerIdExpirationCheckIntervalMs How often to check for producer ids which need to be expired
  */
 @threadsafe
-class Log(@volatile private var _dir: File,
+class Log(@volatile private var _dir: File,           // todo File(/mnt/ssd/1/kafka/test08075-0)
           @volatile var config: LogConfig,
-          @volatile var logStartOffset: Long,
-          @volatile var recoveryPoint: Long,
-          scheduler: Scheduler,
-          brokerTopicStats: BrokerTopicStats,
+          @volatile var logStartOffset: Long,         // todo 10
+          @volatile var recoveryPoint: Long,          // todo 0
+          scheduler: Scheduler,                       // TODO: kafka的10个线程的线程池，后台运行
+          brokerTopicStats: BrokerTopicStats,         // TODO: broker topic 状态信息
           val time: Time,
-          val maxProducerIdExpirationMs: Int,
-          val producerIdExpirationCheckIntervalMs: Int,
-          val topicPartition: TopicPartition,
+          val maxProducerIdExpirationMs: Int,         // todo 7-days
+          val producerIdExpirationCheckIntervalMs: Int,// todo 10 mins
+          val topicPartition: TopicPartition,         // todo TopicPartition(test08075, 0)
           val producerStateManager: ProducerStateManager,
           logDirFailureChannel: LogDirFailureChannel) extends Logging with KafkaMetricsGroup {
 
   import kafka.log.Log._
 
+  // TODO:  [Log partition=test08075-0, dir=/mnt/ssd/1/kafka]
   this.logIdent = s"[Log partition=$topicPartition, dir=${dir.getParent}] "
 
   /* A lock that guards all modifications to the log */
@@ -257,9 +258,11 @@ class Log(@volatile private var _dir: File,
   // After memory mapped buffer is closed, no disk IO operation should be performed for this log
   @volatile private var isMemoryMappedBufferClosed = false
 
+  // TODO: /mnt/ssd/1/kafka
   // Cache value of parent directory to avoid allocations in hot paths like ReplicaManager.checkpointHighWatermarks
   @volatile private var _parentDir: String = dir.getParent
 
+  // TODO:  上一次flushed时间
   /* last time it was flushed */
   private val lastFlushedTime = new AtomicLong(time.milliseconds)
 
@@ -283,8 +286,17 @@ class Log(@volatile private var _dir: File,
    * equals the log end offset (which may never happen for a partition under consistent load). This is needed to
    * prevent the log start offset (which is exposed in fetch responses) from getting ahead of the high watermark.
    */
+  // TODO: logStartOffset=10 ，高水位元数据
   @volatile private var highWatermarkMetadata: LogOffsetMetadata = LogOffsetMetadata(logStartOffset)
 
+  // TODO: 所有的segment
+  /**
+   * cat /mnt/ssd/1/kafka/test08075-0
+   *  00000000000000000115.log        // todo 这个就是segment文件
+      00000000000000000115.snapshot
+      00000000000000000115.timeindex
+      leader-epoch-checkpoint
+   */
   /* the actual segments of the log */
   private val segments: ConcurrentNavigableMap[java.lang.Long, LogSegment] = new ConcurrentSkipListMap[java.lang.Long, LogSegment]
 
@@ -292,9 +304,11 @@ class Log(@volatile private var _dir: File,
   @volatile var leaderEpochCache: Option[LeaderEpochFileCache] = None
 
   locally {
+    // TODO: 如果 /mnt/ssd/1/kafka/test08075-0 不存在，则创建
     // create the log directory if it doesn't exist
     Files.createDirectories(dir.toPath)
 
+    // TODO:  初始化 LeaderEpochCache 
     initializeLeaderEpochCache()
 
     val nextOffset = loadSegments()
@@ -528,18 +542,27 @@ class Log(@volatile private var _dir: File,
   /** The name of this log */
   def name  = dir.getName()
 
+  // TODO: KAFKA_2_7_IV2  -> V2
   def recordVersion: RecordVersion = config.messageFormatVersion.recordVersion
 
+  // TODO: 初始化 LeaderEpochCache 
   private def initializeLeaderEpochCache(): Unit = lock synchronized {
+    // TODO: 创建 File(/mnt/ssd/1/kafka/test08075-0/leader-epoch-checkpoint) 文件
     val leaderEpochFile = LeaderEpochCheckpointFile.newFile(dir)
 
     def newLeaderEpochFileCache(): LeaderEpochFileCache = {
+      // TODO: 创建LeaderEpochCheckpointFile 实例
       val checkpointFile = new LeaderEpochCheckpointFile(leaderEpochFile, logDirFailureChannel)
+      // TODO: 创建  LeaderEpochFileCache 实例
+      // TODO:  topicPartition = TopicPartition(test08075, 0)
       new LeaderEpochFileCache(topicPartition, () => logEndOffset, checkpointFile)
     }
 
+    // TODO:  recordVersion=V2
     if (recordVersion.precedes(RecordVersion.V2)) {
+      // TODO: 判断  /mnt/ssd/1/kafka/test08075-0/leader-epoch-checkpoint 是否存在
       val currentCache = if (leaderEpochFile.exists())
+      // TODO: 创建 LeaderEpochFileCache实例 
         Some(newLeaderEpochFileCache())
       else
         None
@@ -547,7 +570,9 @@ class Log(@volatile private var _dir: File,
       if (currentCache.exists(_.nonEmpty))
         warn(s"Deleting non-empty leader epoch cache due to incompatible message format $recordVersion")
 
+      // TODO: 删除 /mnt/ssd/1/kafka/test08075-0/leader-epoch-checkpoint
       Files.deleteIfExists(leaderEpochFile.toPath)
+      // TODO: 设置 leaderEpochCache=None
       leaderEpochCache = None
     } else {
       leaderEpochCache = Some(newLeaderEpochFileCache())
@@ -565,7 +590,9 @@ class Log(@volatile private var _dir: File,
 
     def deleteIndicesIfExist(baseFile: File, suffix: String = ""): Unit = {
       info(s"Deleting index files with suffix $suffix for baseFile $baseFile")
+      // TODO: 从文件名中获取到offset
       val offset = offsetFromFile(baseFile)
+      // TODO: 删除对应的Index文件
       Files.deleteIfExists(Log.offsetIndexFile(dir, offset, suffix).toPath)
       Files.deleteIfExists(Log.timeIndexFile(dir, offset, suffix).toPath)
       Files.deleteIfExists(Log.transactionIndexFile(dir, offset, suffix).toPath)
@@ -575,24 +602,37 @@ class Log(@volatile private var _dir: File,
     val cleanFiles = mutable.Set[File]()
     var minCleanedFileOffset = Long.MaxValue
 
+    // TODO: dir=File(/mnt/ssd/1/kafka/test08075-0)
+    // todo   00000000000000000115.log
+    // todo   00000000000000000115.snapshot
+    // todo   00000000000000000115.timeindex
+    // todo   leader-epoch-checkpoint
     for (file <- dir.listFiles if file.isFile) {
       if (!file.canRead)
         throw new IOException(s"Could not read file $file")
       val filename = file.getName
+      // TODO: 是否以 .deleted 结尾
       if (filename.endsWith(DeletedFileSuffix)) {
         debug(s"Deleting stray temporary file ${file.getAbsolutePath}")
+        // TODO: 删除 .deleted 结尾的文件
         Files.deleteIfExists(file.toPath)
+        // TODO: 是否以 .cleaned 结尾的文件
       } else if (filename.endsWith(CleanedFileSuffix)) {
         minCleanedFileOffset = Math.min(offsetFromFileName(filename), minCleanedFileOffset)
         cleanFiles += file
+        // TODO: 是否以 .swap 结尾的文件
       } else if (filename.endsWith(SwapFileSuffix)) {
         // we crashed in the middle of a swap operation, to recover:
         // if a log, delete the index files, complete the swap operation later
         // if an index just delete the index files, they will be rebuilt
+        // TODO: 创建  File 实例
+        // TODO: 00000000000000000115.timeindex.swap
         val baseFile = new File(CoreUtils.replaceSuffix(file.getPath, SwapFileSuffix, ""))
         info(s"Found file ${file.getAbsolutePath} from interrupted swap operation.")
+        // TODO: 如果是 以 .index，.timeindex， .txnindex结尾，则删除
         if (isIndexFile(baseFile)) {
           deleteIndicesIfExist(baseFile)
+          // TODO: 如果是 以 .log 结尾的文件
         } else if (isLogFile(baseFile)) {
           deleteIndicesIfExist(baseFile)
           swapFiles += file
@@ -627,22 +667,37 @@ class Log(@volatile private var _dir: File,
    * caller is responsible for closing them appropriately, if needed.
    * @throws LogSegmentOffsetOverflowException if the log directory contains a segment with messages that overflow the index offset
    */
+  // TODO: 加载所有的.log 文件生产segment对象，并且把所有的segment对象加入到 this.segments 中
+  // todo 在 this.segments中的格式为：<segment.baseOffset, segment>
   private def loadSegmentFiles(): Unit = {
+    // TODO: dir=File(/mnt/ssd/1/kafka/test08075-0)
+    // todo   00000000000000000115.log
+    // todo   00000000000000000115.snapshot
+    // todo   00000000000000000115.timeindex
+    // todo   leader-epoch-checkpoint
     // load segments in ascending order because transactional data from one segment may depend on the
     // segments that come before it
     for (file <- dir.listFiles.sortBy(_.getName) if file.isFile) {
+      // todo   00000000000000000115.timeindex
       if (isIndexFile(file)) {
         // if it is an index file, make sure it has a corresponding .log file
+        // TODO: 115
         val offset = offsetFromFile(file)
+        // TODO: File(/mnt/ssd/1/kafka/test08075-0/00000000000000000115.log)
         val logFile = Log.logFile(dir, offset)
+        // TODO:  如果对对应的 .log 文件不存在，则删除对应的 .index 文件
         if (!logFile.exists) {
           warn(s"Found an orphaned index file ${file.getAbsolutePath}, with no corresponding log file.")
           Files.deleteIfExists(file.toPath)
         }
+        // TODO: 00000000000000000115.log
       } else if (isLogFile(file)) {
         // if it's a log file, load the corresponding log segment
+        // TODO: 115
         val baseOffset = offsetFromFile(file)
+        // TODO: 判断 00000000000000000115.timeindex 文件是否存在
         val timeIndexFileNewlyCreated = !Log.timeIndexFile(dir, baseOffset).exists()
+        // TODO: 读取 00000000000000000115.log， 并且创建 00000000000000000115.index, 00000000000000000115.timeindex 文件
         val segment = LogSegment.open(dir = dir,
           baseOffset = baseOffset,
           config,
@@ -660,6 +715,7 @@ class Log(@volatile private var _dir: File,
               s"to ${e.getMessage}}, recovering segment and rebuilding index files...")
             recoverSegment(segment)
         }
+        // TODO: 把segment对象加入到 segments里面
         addSegment(segment)
       }
     }
@@ -730,6 +786,7 @@ class Log(@volatile private var _dir: File,
   private def loadSegments(): Long = {
     // first do a pass through the files in the log directory and remove any temporary files
     // and find any interrupted swap operations
+    // TODO: 移除临时文件和找到.swap 文件
     val swapFiles = removeTempFilesAndCollectSwapFiles()
 
     // Now do a second pass and load all the log and index files.
@@ -741,6 +798,8 @@ class Log(@volatile private var _dir: File,
       // call to loadSegmentFiles().
       logSegments.foreach(_.close())
       segments.clear()
+      // TODO: 加载所有的.log 文件生产segment对象，并且把所有的segment对象加入到 this.segments 中
+      // todo 在 this.segments中的格式为：<segment.baseOffset, segment>
       loadSegmentFiles()
     }
 
@@ -2418,6 +2477,7 @@ class Log(@volatile private var _dir: File,
    * Add the given segment to the segments in this log. If this segment replaces an existing segment, delete it.
    * @param segment The segment to add
    */
+  // TODO:  <segment.baseOffset, segment>
   @threadsafe
   def addSegment(segment: LogSegment): LogSegment = this.segments.put(segment.baseOffset, segment)
 
@@ -2574,6 +2634,7 @@ object Log {
     //  2. 缓存很多的producer，如果在maxProducerIdExpirationMs时间里面，没有来得及及时清理，会出现OOM
     //   - 这个时候可以降低 maxProducerIdExpirationMs 的值，maxProducerIdExpirationMs=24h 也是可以满足多数场景
     val producerStateManager = new ProducerStateManager(topicPartition, dir, maxProducerIdExpirationMs)
+    // TODO: 创建 Log实例 并返回
     new Log(dir, config, logStartOffset, recoveryPoint, scheduler, brokerTopicStats, time, maxProducerIdExpirationMs,
       producerIdExpirationCheckIntervalMs, topicPartition, producerStateManager, logDirFailureChannel)
   }
@@ -2585,6 +2646,8 @@ object Log {
    * @param offset The offset to use in the file name
    * @return The filename
    */
+  // TODO: offset=115 
+  // TODO: return 00000000000000000115
   def filenamePrefixFromOffset(offset: Long): String = {
     val nf = NumberFormat.getInstance()
     nf.setMinimumIntegerDigits(20)
@@ -2680,6 +2743,8 @@ object Log {
     new File(dir, filenamePrefixFromOffset(offset) + TxnIndexFileSuffix + suffix)
 
   def offsetFromFileName(filename: String): Long = {
+    // TODO: filename=00000000000000000115.timeindex
+    // TODO: return  115
     filename.substring(0, filename.indexOf('.')).toLong
   }
 
