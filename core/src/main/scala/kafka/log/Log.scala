@@ -643,6 +643,7 @@ class Log(@volatile private var _dir: File,           // todo File(/mnt/ssd/1/ka
     // KAFKA-6264: Delete all .swap files whose base offset is greater than the minimum .cleaned segment offset. Such .swap
     // files could be part of an incomplete split operation that could not complete. See Log#splitOverflowedSegment
     // for more details about the split operation.
+    // TODO: 从待恢复swap集合中找出那些起始位移值大于minCleanedFileOffset值的文件，直接删掉这些无效的.swap文件
     val (invalidSwapFiles, validSwapFiles) = swapFiles.partition(file => offsetFromFile(file) >= minCleanedFileOffset)
     invalidSwapFiles.foreach { file =>
       debug(s"Deleting invalid swap file ${file.getAbsoluteFile} minCleanedFileOffset: $minCleanedFileOffset")
@@ -652,11 +653,13 @@ class Log(@volatile private var _dir: File,           // todo File(/mnt/ssd/1/ka
     }
 
     // Now that we have deleted all .swap files that constitute an incomplete split operation, let's delete all .clean files
+    // TODO: 清除所有待删除文件集合中的文件
     cleanFiles.foreach { file =>
       debug(s"Deleting stray .clean file ${file.getAbsolutePath}")
       Files.deleteIfExists(file.toPath)
     }
 
+    // TODO: 最后返回当前有效的.swap文件集合
     validSwapFiles
   }
 
@@ -677,6 +680,9 @@ class Log(@volatile private var _dir: File,           // todo File(/mnt/ssd/1/ka
     // todo   leader-epoch-checkpoint
     // load segments in ascending order because transactional data from one segment may depend on the
     // segments that come before it
+    // TODO: 1. 变量文件目录
+    //  2. 如果文件是索引文件，那么检查一下是否有对应的日志文件存在，如果不存在，则删除索引文件
+    //  3. 如果是日志文件，那么创建LogSegment实例，并加入到segments中
     for (file <- dir.listFiles.sortBy(_.getName) if file.isFile) {
       // todo   00000000000000000115.timeindex
       if (isIndexFile(file)) {
@@ -750,15 +756,23 @@ class Log(@volatile private var _dir: File,           // todo File(/mnt/ssd/1/ka
    *                                           and manual intervention might be required to get out of it.
    */
   private def completeSwapOperations(swapFiles: Set[File]): Unit = {
+    // TODO:  1.变量所有的.swap 文件
+    //  2. 创建LogSegment对象实例
+    //  3. 执行日志端恢复操作
+    //  4. 把.swap 文件重命名为.log 文件
     for (swapFile <- swapFiles) {
+      // TODO: 创建 .swap 文件对象
       val logFile = new File(CoreUtils.replaceSuffix(swapFile.getPath, SwapFileSuffix, ""))
+      // TODO: 获取到文件的起始位移值
       val baseOffset = offsetFromFile(logFile)
+      // TODO: 构建 LogSegment对象实例
       val swapSegment = LogSegment.open(swapFile.getParentFile,
         baseOffset = baseOffset,
         config,
         time = time,
         fileSuffix = SwapFileSuffix)
       info(s"Found log file ${swapFile.getPath} from interrupted swap operation, repairing.")
+      // TODO: 执行日志段恢复操作
       recoverSegment(swapSegment)
 
       // We create swap files for two cases:
@@ -769,9 +783,11 @@ class Log(@volatile private var _dir: File,           // todo File(/mnt/ssd/1/ka
       // must fall within the range of existing segment(s). If we cannot find such a segment, it means the deletion
       // of that segment was successful. In such an event, we should simply rename the .swap to .log without having to
       // do a replace with an existing segment.
+      // TODO: 确认之前删除日志端是否成功，是否还存在老的日志段文件
       val oldSegments = logSegments(swapSegment.baseOffset, swapSegment.readNextOffset).filter { segment =>
         segment.readNextOffset > swapSegment.baseOffset
       }
+      // TODO: 如果存在，直接把.swap 文件重命名 为 .log 文件
       replaceSegments(Seq(swapSegment), oldSegments.toSeq, isRecoveredSwapFile = true)
     }
   }
@@ -786,16 +802,19 @@ class Log(@volatile private var _dir: File,           // todo File(/mnt/ssd/1/ka
   private def loadSegments(): Long = {
     // first do a pass through the files in the log directory and remove any temporary files
     // and find any interrupted swap operations
-    // TODO: 移除临时文件和找到.swap 文件
+    // TODO: 移除上次 Failure 遗留下来的各种临时文件（包括.cleaned、.swap、.deleted 文件等）
     val swapFiles = removeTempFilesAndCollectSwapFiles()
 
     // Now do a second pass and load all the log and index files.
     // We might encounter legacy log segments with offset overflow (KAFKA-6264). We need to split such segments. When
     // this happens, restart loading segment files from scratch.
+    // TODO: 清空所有日志段对象，并且再次遍历分区路径，重建日志段 segments Map 并删除无对应日志段文件的孤立索引文件
     retryOnOffsetOverflow {
       // In case we encounter a segment with offset overflow, the retry logic will split it after which we need to retry
       // loading of segments. In that case, we also need to close all segments that could have been left open in previous
       // call to loadSegmentFiles().
+      // TODO: 刚刚启动的时候，this.segments里面是空的，那么此时，会继续往下运行，
+      //  调用loadSegmentFiles() 方法，加载 所有的.log 文件，并且把对应的segment加入到this. segments中
       logSegments.foreach(_.close())
       segments.clear()
       // TODO: 加载所有的.log 文件生产segment对象，并且把所有的segment对象加入到 this.segments 中
@@ -806,10 +825,12 @@ class Log(@volatile private var _dir: File,           // todo File(/mnt/ssd/1/ka
     // Finally, complete any interrupted swap operations. To be crash-safe,
     // log files that are replaced by the swap segment should be renamed to .deleted
     // before the swap file is restored as the new segment file.
+    // TODO: 处理有效的.swap 文件集合
     completeSwapOperations(swapFiles)
 
     if (!dir.getAbsolutePath.endsWith(Log.DeleteDirSuffix)) {
       val nextOffset = retryOnOffsetOverflow {
+        // TODO: 执行log恢复
         recoverLog()
       }
 
@@ -864,16 +885,20 @@ class Log(@volatile private var _dir: File,           // todo File(/mnt/ssd/1/ka
    */
   private def recoverLog(): Long = {
     // if we have the clean shutdown marker, skip recovery
+    // TODO: 如果不存在以.kafka_cleanshutdown结尾的文件。通常都不存在
     if (!hasCleanShutdownFile) {
       // okay we need to actually recover this log
+      // TODO: 获取到上次恢复点以外的所有unflushed日志段对象
       val unflushed = logSegments(this.recoveryPoint, Long.MaxValue).iterator
       var truncated = false
 
+      // TODO: 遍历这些unflushed日志段
       while (unflushed.hasNext && !truncated) {
         val segment = unflushed.next()
         info(s"Recovering unflushed segment ${segment.baseOffset}")
         val truncatedBytes =
           try {
+            // TODO: 执行恢复日志段操作
             recoverSegment(segment, leaderEpochCache)
           } catch {
             case _: InvalidOffsetException =>
@@ -882,6 +907,7 @@ class Log(@volatile private var _dir: File,           // todo File(/mnt/ssd/1/ka
                 s"creating an empty one with starting offset $startOffset")
               segment.truncateTo(startOffset)
           }
+        // TODO: 如果有无效的消息导致被截断的字节数不为0，直接删除剩余的日志段对象
         if (truncatedBytes > 0) {
           // we had an invalid message, delete all remaining log
           warn(s"Corruption found in segment ${segment.baseOffset}, truncating to offset ${segment.readNextOffset}")
@@ -893,6 +919,7 @@ class Log(@volatile private var _dir: File,           // todo File(/mnt/ssd/1/ka
       }
     }
 
+    // TODO: 这些都做完之后，如果日志段集合不为空
     if (logSegments.nonEmpty) {
       val logEndOffset = activeSegment.readNextOffset
       if (logEndOffset < logStartOffset) {
@@ -904,8 +931,10 @@ class Log(@volatile private var _dir: File,           // todo File(/mnt/ssd/1/ka
       }
     }
 
+    // TODO: 这些都做完之后，如果日志段集合为空了
     if (logSegments.isEmpty) {
       // no existing segments, create a new mutable segment beginning at logStartOffset
+      // TODO: 至少创建一个新的日志段，以logStartOffset为日志段的起始位移，并加入日志段集合中
       addSegment(LogSegment.open(dir = dir,
         baseOffset = logStartOffset,
         config,
@@ -915,6 +944,7 @@ class Log(@volatile private var _dir: File,           // todo File(/mnt/ssd/1/ka
         preallocate = config.preallocate))
     }
 
+    // TODO: 更新上次恢复点属性，并返回
     recoveryPoint = activeSegment.readNextOffset
     recoveryPoint
   }
@@ -2444,6 +2474,7 @@ class Log(@volatile private var _dir: File,           // todo File(/mnt/ssd/1/ka
         // delete segment files
         deleteSegmentFiles(List(seg), asyncDelete = true)
       }
+      // TODO: 重命名.swap文件为 .log 文件
       // okay we are safe now, remove the swap suffix
       sortedNewSegments.foreach(_.changeFileSuffixes(Log.SwapFileSuffix, ""))
     }

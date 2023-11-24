@@ -57,8 +57,8 @@ class LogSegment private[log] (val log: FileRecords,                         // 
                                val lazyOffsetIndex: LazyIndex[OffsetIndex],  // todo 00000000000000000115.index
                                val lazyTimeIndex: LazyIndex[TimeIndex],      // todo 00000000000000000115.timeindex
                                val txnIndex: TransactionIndex,               // todo 00000000000000000115.txnindex
-                               val baseOffset: Long,                         // todo 115
-                               val indexIntervalBytes: Int,                  // todo 4096
+                               val baseOffset: Long,                         // todo 115  log的起始位置
+                               val indexIntervalBytes: Int,                  // todo 4096(4KB)
                                val rollJitterMs: Long,                       // todo 0
                                val time: Time) extends Logging {
 
