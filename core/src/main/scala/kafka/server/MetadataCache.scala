@@ -43,6 +43,8 @@ import org.apache.kafka.common.security.auth.SecurityProtocol
  *  A cache for the state (e.g., current leader) of each partition. This cache is updated through
  *  UpdateMetadataRequest from the controller. Every broker maintains the same cache, asynchronously.
  */
+// TODO: 缓存每一个partition的状态， 通过 controller的 UpdateMetadataRequest 请求来更新状态，每个broker护异步地维护相同的缓存
+//  brokerId=1001
 class MetadataCache(brokerId: Int) extends Logging {
 
   private val partitionMetadataLock = new ReentrantReadWriteLock()
@@ -50,10 +52,14 @@ class MetadataCache(brokerId: Int) extends Logging {
   //replace the value with a completely new one. this means reads (which are not under any lock) need to grab
   //the value of this var (into a val) ONCE and retain that read copy for the duration of their operation.
   //multiple reads of this value risk getting different snapshots.
+  // TODO: broker里面维护的缓存，在读取操作的时候，需要copy一下缓存进行读取。
+  //  风险点：因为缓存一直在更新，所以，多个读取操作应该分开来操作
   @volatile private var metadataSnapshot: MetadataSnapshot = MetadataSnapshot(partitionStates = mutable.AnyRefMap.empty,
     controllerId = None, aliveBrokers = mutable.LongMap.empty, aliveNodes = mutable.LongMap.empty)
 
+  // TODO: [MetadataCache brokerId=1001]
   this.logIdent = s"[MetadataCache brokerId=$brokerId] "
+  // TODO: 状态修改log，inControllerContext表示是否为Controller，还是broker，如果是broker，则为false，如果是controller，则为true
   private val stateChangeLogger = new StateChangeLogger(brokerId, inControllerContext = false, None)
 
   // This method is the main hotspot when it comes to the performance of metadata requests,

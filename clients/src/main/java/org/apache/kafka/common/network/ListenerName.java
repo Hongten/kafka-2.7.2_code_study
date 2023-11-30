@@ -29,6 +29,7 @@ public final class ListenerName {
      * Create an instance with the security protocol name as the value.
      */
     public static ListenerName forSecurityProtocol(SecurityProtocol securityProtocol) {
+        // TODO: 11/28/23 创建 ListenerName 对象，根据安全协议名称 PLAINTEXT，SSL，SASL_PLAINTEXT，SASL_SSL
         return new ListenerName(securityProtocol.name);
     }
 

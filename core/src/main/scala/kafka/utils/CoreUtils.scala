@@ -181,9 +181,11 @@ object CoreUtils {
    * Whitespace surrounding the comma will be removed.
    */
   def parseCsvList(csvList: String): Seq[String] = {
+    // TODO: listeners=PLAINTEXT://:9092
     if (csvList == null || csvList.isEmpty)
       Seq.empty[String]
     else
+    // TODO: 返回 PLAINTEXT://:9092
       csvList.split("\\s*,\\s*").filter(v => !v.equals(""))
   }
 
@@ -258,26 +260,35 @@ object CoreUtils {
   }
 
   def listenerListToEndPoints(listeners: String, securityProtocolMap: Map[ListenerName, SecurityProtocol], requireDistinctPorts: Boolean): Seq[EndPoint] = {
+    // TODO: 对EndPoint进行校验，主要是看看有没有重复的记录
     def validate(endPoints: Seq[EndPoint]): Unit = {
       // filter port 0 for unit tests
       val portsExcludingZero = endPoints.map(_.port).filter(_ != 0)
+      // TODO: 通过 listenerName 去除重复的对象
       val distinctListenerNames = endPoints.map(_.listenerName).distinct
 
+      // TODO: 去重后的记录大小必须和原有记录大小一样，即没有重复记录
       require(distinctListenerNames.size == endPoints.size, s"Each listener must have a different name, listeners: $listeners")
+      // TODO: 是否需要对port进行校验
       if (requireDistinctPorts) {
         val distinctPorts = portsExcludingZero.distinct
+        // TODO: port也必须没有重复的记录
         require(distinctPorts.size == portsExcludingZero.size, s"Each listener must have a different port, listeners: $listeners")
       }
     }
 
     val endPoints = try {
+      // TODO:  listeners=PLAINTEXT://:9092
       val listenerList = parseCsvList(listeners)
+      // TODO: PLAINTEXT://:9092
       listenerList.map(EndPoint.createEndPoint(_, Some(securityProtocolMap)))
     } catch {
       case e: Exception =>
         throw new IllegalArgumentException(s"Error creating broker listeners from '$listeners': ${e.getMessage}", e)
     }
+    // TODO: 检查是否有重复的记录
     validate(endPoints)
+    // TODO: 返回Seq(EndPoint)
     endPoints
   }
 

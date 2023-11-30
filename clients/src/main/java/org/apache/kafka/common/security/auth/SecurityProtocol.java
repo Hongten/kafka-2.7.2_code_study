@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+// TODO: 11/28/23 kafka支持的安全协议 4种
 public enum SecurityProtocol {
     /** Un-authenticated, non-encrypted channel */
     PLAINTEXT(0, "PLAINTEXT"),

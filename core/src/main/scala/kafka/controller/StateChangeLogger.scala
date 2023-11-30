@@ -29,6 +29,7 @@ object StateChangeLogger {
  * context of the KafkaController or not (e.g. ReplicaManager and MetadataCache log to the state change logger
  * irrespective of whether the broker is the Controller).
  */
+// TODO: brokerId=1001
 class StateChangeLogger(brokerId: Int, inControllerContext: Boolean, controllerEpoch: Option[Int]) extends Logging {
 
   if (controllerEpoch.isDefined && !inControllerContext)
@@ -37,8 +38,11 @@ class StateChangeLogger(brokerId: Int, inControllerContext: Boolean, controllerE
   override lazy val logger = StateChangeLogger.logger
 
   locally {
+    // TODO: 通过 inControllerContext 来判断是否为 controller 还是 broker来使用该logger
     val prefix = if (inControllerContext) "Controller" else "Broker"
     val epochEntry = controllerEpoch.fold("")(epoch => s" epoch=$epoch")
+    // TODO:  [Controller id=1002 epoch=1]
+    // TODO:  [Broker id=1001 epoch=2]
     logIdent = s"[$prefix id=$brokerId$epochEntry] "
   }
 

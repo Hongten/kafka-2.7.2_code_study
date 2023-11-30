@@ -28,6 +28,10 @@ object EndPoint {
 
   private val uriParseExp = """^(.*)://\[?([0-9a-zA-Z\-%._:]*)\]?:(-?[0-9]+)""".r
 
+  // TODO: <ListenerName("PLAINTEXT"), PLAINTEXT(0, "PLAINTEXT")>
+  // TODO: <ListenerName("SSL"), PLAINTEXT(1, "SSL")>
+  // TODO: <ListenerName("SASL_PLAINTEXT"), PLAINTEXT(2, "SASL_PLAINTEXT")>
+  // TODO: <ListenerName("SASL_SSL"), PLAINTEXT(3, "SASL_SSL")>
   private[kafka] val DefaultSecurityProtocolMap: Map[ListenerName, SecurityProtocol] =
     SecurityProtocol.values.map(sp => ListenerName.forSecurityProtocol(sp) -> sp).toMap
 
@@ -43,14 +47,21 @@ object EndPoint {
   def createEndPoint(connectionString: String, securityProtocolMap: Option[Map[ListenerName, SecurityProtocol]]): EndPoint = {
     val protocolMap = securityProtocolMap.getOrElse(DefaultSecurityProtocolMap)
 
-    def securityProtocol(listenerName: ListenerName): SecurityProtocol =
+    def securityProtocol(listenerName: ListenerName): SecurityProtocol = {
+      // TODO: return PLAINTEXT(0, "PLAINTEXT")
       protocolMap.getOrElse(listenerName,
         throw new IllegalArgumentException(s"No security protocol defined for listener ${listenerName.value}"))
+    }
 
+    // TODO: connectionString=PLAINTEXT://:9092
     connectionString match {
+      // TODO: PLAINTEXT://:9092 ，host为""
+      // TODO: listenerNameString=PLAINTEXT
       case uriParseExp(listenerNameString, "", port) =>
         val listenerName = ListenerName.normalised(listenerNameString)
+        // TODO: 创建 EndPoint 对象实例EndPoint("", 9092, ListenerName("PLAINTEXT"), PLAINTEXT(0, "PLAINTEXT"))
         new EndPoint(null, port.toInt, listenerName, securityProtocol(listenerName))
+      // TODO: PLAINTEXT://localhost:9092 ，配置了host
       case uriParseExp(listenerNameString, host, port) =>
         val listenerName = ListenerName.normalised(listenerNameString)
         new EndPoint(host, port.toInt, listenerName, securityProtocol(listenerName))
@@ -62,6 +73,7 @@ object EndPoint {
 /**
  * Part of the broker definition - matching host/port pair to a protocol
  */
+// TODO: EndPoint("", 9092, ListenerName("PLAINTEXT"), PLAINTEXT(0, "PLAINTEXT"))
 case class EndPoint(host: String, port: Int, listenerName: ListenerName, securityProtocol: SecurityProtocol) {
   def connectionString: String = {
     val hostport =
@@ -69,6 +81,8 @@ case class EndPoint(host: String, port: Int, listenerName: ListenerName, securit
         ":"+port
       else
         Utils.formatAddress(host, port)
+    // TODO: PLAINTEXT://:9092
+    // TODO: == PLAINTEXT://localhost:9092
     listenerName.value + "://" + hostport
   }
 

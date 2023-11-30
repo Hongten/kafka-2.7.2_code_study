@@ -10,6 +10,7 @@
 - broker metrics
 - topic metrics
 - broker quota机制
+- broker缓存更新机制（MetadataCache)
 
 # Producer
 - 生产者流程

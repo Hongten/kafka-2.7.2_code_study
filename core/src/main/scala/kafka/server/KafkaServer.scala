@@ -351,16 +351,19 @@ class KafkaServer(val config: KafkaConfig, time: Time = Time.SYSTEM, threadNameP
         // TODO: 启动 6 个线程，
         logManager.startup()
 
+        // TODO: 创建 MetadataCache 实例
         metadataCache = new MetadataCache(config.brokerId)
         // Enable delegation token cache for all SCRAM mechanisms to simplify dynamic update.
         // This keeps the cache up-to-date if new SCRAM mechanisms are enabled dynamically.
         tokenCache = new DelegationTokenCache(ScramMechanism.mechanismNames)
         credentialProvider = new CredentialProvider(ScramMechanism.mechanismNames, tokenCache)
 
+        // TODO: 创建  SocketServer 对象- 启动socket，监听9092端口，等待接收客户端请求
         // Create and start the socket server acceptor threads so that the bound port is known.
         // Delay starting processors until the end of the initialization sequence to ensure
         // that credentials have been loaded before processing authentications.
         socketServer = new SocketServer(config, metrics, time, credentialProvider)
+        // TODO: 调用startup方法
         socketServer.startup(startProcessingRequests = false)
 
         /* start replica manager */

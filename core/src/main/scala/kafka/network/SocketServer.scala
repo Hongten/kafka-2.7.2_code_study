@@ -75,35 +75,55 @@ import scala.util.control.ControlThrowable
  *      Acceptor has 1 Processor thread that has its own selector and read requests from the socket.
  *      1 Handler thread that handles requests and produce responses back to the processor thread for writing.
  */
+// TODO: 数据层，处理数据请求， PRODUCER,FETCH 数据请求
+//       控制层：处理控制类请求，LeaderAndIsrRequest, StopReplicaRequest, UpdateMetadataRequest, 通常被赋予高优先级
+//  listeners=PLAINTEXT://:9092， 如果配置了多个监听器，则会有多个Acceptor线程。
+//             这里，我们只配置了一个监听器，因此只会有一个Acceptor线程，该线程用来处理新的连接。Acceptor有N个处理器线程(每个线程都有自己的selector并从socket中读取请求)
+//             和M个处理程序线程（处理请求并将响应返回给处理器线程for writing)
+// TODO: BrokerReconfigurable 一些参数可以支持动态配置
 class SocketServer(val config: KafkaConfig,
                    val metrics: Metrics,
                    val time: Time,
                    val credentialProvider: CredentialProvider)
   extends Logging with KafkaMetricsGroup with BrokerReconfigurable {
 
+  // TODO: 默认500 SocketServer的请求队列长度
   private val maxQueuedRequests = config.queuedMaxRequests
 
+  // TODO: [SocketServer brokerId=1001]
   private val logContext = new LogContext(s"[SocketServer brokerId=${config.brokerId}] ")
   this.logIdent = logContext.logPrefix
 
+  // TODO: memoryPool指标信息
   private val memoryPoolSensor = metrics.sensor("MemoryPoolUtilization")
   private val memoryPoolDepletedPercentMetricName = metrics.metricName("MemoryPoolAvgDepletedPercent", MetricsGroup)
   private val memoryPoolDepletedTimeMetricName = metrics.metricName("MemoryPoolDepletedTimeTotal", MetricsGroup)
   memoryPoolSensor.add(new Meter(TimeUnit.MILLISECONDS, memoryPoolDepletedPercentMetricName, memoryPoolDepletedTimeMetricName))
+  // TODO: queuedMaxBytes=-1 默认不会创建 SimpleMemoryPool实例
   private val memoryPool = if (config.queuedMaxBytes > 0) new SimpleMemoryPool(config.queuedMaxBytes, config.socketRequestMaxBytes, false, memoryPoolSensor) else MemoryPool.NONE
+  // TODO: 数据层处理器
   // data-plane
   private val dataPlaneProcessors = new ConcurrentHashMap[Int, Processor]()
+  // TODO: 数据层Acceptors
   private[network] val dataPlaneAcceptors = new ConcurrentHashMap[EndPoint, Acceptor]()
+  // TODO: 数据层请求Channel ， maxQueuedRequests=500, DataPlaneMetricPrefix=""
   val dataPlaneRequestChannel = new RequestChannel(maxQueuedRequests, DataPlaneMetricPrefix, time)
+  // TODO: 控制层处理器
   // control-plane
   private var controlPlaneProcessorOpt : Option[Processor] = None
   private[network] var controlPlaneAcceptorOpt : Option[Acceptor] = None
+  // TODO: ControlPlaneMetricPrefix="ControlPlane"。 控制层资源配置只有1个Acceptor线程+1个Processor线程 + 1个深度为20的请求队列
+  // TODO: 社区假设： 控制类请求的数量应该远远小于数据类请求， 因而不需要为他创建线程池和比较深的请求队列
   val controlPlaneRequestChannelOpt: Option[RequestChannel] = config.controlPlaneListenerName.map(_ =>
     new RequestChannel(20, ControlPlaneMetricPrefix, time))
 
+  // TODO: processor id从0开始
   private var nextProcessorId = 0
+  // TODO: 连接quota
   private var connectionQuotas: ConnectionQuotas = _
+  // TODO: 是否开始处理请求标志
   private var startedProcessingRequests = false
+  // TODO: 是否开始停止处理请求标志
   private var stoppedProcessingRequests = false
 
   /**
@@ -118,10 +138,15 @@ class SocketServer(val config: KafkaConfig,
    *
    * @param startProcessingRequests Flag indicating whether `Processor`s must be started.
    */
+  // TODO: startProcessingRequests=false
   def startup(startProcessingRequests: Boolean = true): Unit = {
+    // TODO: 同步操作 
     this.synchronized {
+      // TODO: 创建 ConnectionQuotas 实例
       connectionQuotas = new ConnectionQuotas(config, time, metrics)
+      // TODO: 创建控制层Acceptor和Processor，默认情况config.controlPlaneListener为空
       createControlPlaneAcceptorAndProcessor(config.controlPlaneListener)
+      // TODO: 创建数据层Acceptor和Processor
       createDataPlaneAcceptorsAndProcessors(config.numNetworkThreads, config.dataPlaneListeners)
       if (startProcessingRequests) {
         this.startProcessingRequests()
@@ -258,9 +283,12 @@ class SocketServer(val config: KafkaConfig,
   }
 
   private def createControlPlaneAcceptorAndProcessor(endpointOpt: Option[EndPoint]): Unit = {
+    // TODO: 创建控制层Acceptor和Processor
     endpointOpt.foreach { endpoint =>
       connectionQuotas.addListener(config, endpoint.listenerName)
+      // TODO: ControlPlaneMetricPrefix="ControlPlane"
       val controlPlaneAcceptor = createAcceptor(endpoint, ControlPlaneMetricPrefix)
+      // TODO: 创建 processor ，nextProcessorId=0
       val controlPlaneProcessor = newProcessor(nextProcessorId, controlPlaneRequestChannelOpt.get, connectionQuotas, endpoint.listenerName, endpoint.securityProtocol, memoryPool)
       controlPlaneAcceptorOpt = Some(controlPlaneAcceptor)
       controlPlaneProcessorOpt = Some(controlPlaneProcessor)
@@ -274,9 +302,13 @@ class SocketServer(val config: KafkaConfig,
   }
 
   private def createAcceptor(endPoint: EndPoint, metricPrefix: String) : Acceptor = {
+    // TODO: 100KB
     val sendBufferSize = config.socketSendBufferBytes
+    // TODO: 100KB
     val recvBufferSize = config.socketReceiveBufferBytes
+    // TODO: 1001
     val brokerId = config.brokerId
+    // TODO: 创建 Acceptor 实例 metricPrefix=ControlPlane
     new Acceptor(endPoint, sendBufferSize, recvBufferSize, brokerId, connectionQuotas, metricPrefix)
   }
 
@@ -412,6 +444,7 @@ class SocketServer(val config: KafkaConfig,
   // `protected` for test usage
   protected[network] def newProcessor(id: Int, requestChannel: RequestChannel, connectionQuotas: ConnectionQuotas, listenerName: ListenerName,
                                       securityProtocol: SecurityProtocol, memoryPool: MemoryPool): Processor = {
+    // TODO: 创建 Processor 实例
     new Processor(id,
       time,
       config.socketRequestMaxBytes,
@@ -526,28 +559,36 @@ private[kafka] abstract class AbstractServerThread(connectionQuotas: ConnectionQ
 }
 
 /**
+ * todo Acceptor是一个线程能够接收和配置新的连接，这个Acceptor对应一个endpoint
+ *      Acceptor会实现run() 方法
  * Thread that accepts and configures new connections. There is one of these per endpoint.
  */
-private[kafka] class Acceptor(val endPoint: EndPoint,
-                              val sendBufferSize: Int,
-                              val recvBufferSize: Int,
-                              brokerId: Int,
+private[kafka] class Acceptor(val endPoint: EndPoint, // TODO: PLAINTEXT://:9092
+                              val sendBufferSize: Int, // TODO: 100KB
+                              val recvBufferSize: Int, // TODO: 100KB
+                              brokerId: Int,           // TODO: 1001
                               connectionQuotas: ConnectionQuotas,
-                              metricPrefix: String) extends AbstractServerThread(connectionQuotas) with KafkaMetricsGroup {
+                              metricPrefix: String)   // TODO: ControlPlane
+  extends AbstractServerThread(connectionQuotas) with KafkaMetricsGroup {
 
+  // TODO: NIO的selector
   private val nioSelector = NSelector.open()
+  // TODO: 创建 server channel ， ServerSocketChannel 实例
   val serverChannel = openServerSocket(endPoint.host, endPoint.port)
+  // TODO: 存放所有的processor
   private val processors = new ArrayBuffer[Processor]()
   private val processorsStarted = new AtomicBoolean
   private val blockedPercentMeter = newMeter(s"${metricPrefix}AcceptorBlockedPercent",
     "blocked time", TimeUnit.NANOSECONDS, Map(ListenerMetricTag -> endPoint.listenerName.value))
 
+  // TODO: 添加processor 到  processors
   private[network] def addProcessors(newProcessors: Buffer[Processor], processorThreadPrefix: String): Unit = synchronized {
     processors ++= newProcessors
     if (processorsStarted.get)
       startProcessors(newProcessors, processorThreadPrefix)
   }
 
+  // TODO: 启动所有的processor
   private[network] def startProcessors(processorThreadPrefix: String): Unit = synchronized {
     if (!processorsStarted.getAndSet(true)) {
       startProcessors(processors, processorThreadPrefix)
@@ -555,6 +596,7 @@ private[kafka] class Acceptor(val endPoint: EndPoint,
   }
 
   private def startProcessors(processors: Seq[Processor], processorThreadPrefix: String): Unit = synchronized {
+    // TODO:  遍历 processors，启动所有的processor
     processors.foreach { processor =>
       KafkaThread.nonDaemon(
         s"${processorThreadPrefix}-kafka-network-thread-$brokerId-${endPoint.listenerName}-${endPoint.securityProtocol}-${processor.id}",
@@ -563,6 +605,7 @@ private[kafka] class Acceptor(val endPoint: EndPoint,
     }
   }
 
+  // TODO: 移除processor
   private[network] def removeProcessors(removeCount: Int, requestChannel: RequestChannel): Unit = synchronized {
     // Shutdown `removeCount` processors. Remove them from the processor list first so that no more
     // connections are assigned. Shutdown the removed processors, closing the selector and its connections.
@@ -592,7 +635,9 @@ private[kafka] class Acceptor(val endPoint: EndPoint,
    * Accept loop that checks for new connection attempts
    */
   def run(): Unit = {
+    // TODO: 在  serverChannel 上面注册 selector， selectionKey=OP_ACCEPT
     serverChannel.register(nioSelector, SelectionKey.OP_ACCEPT)
+    // TODO: 标记启动完成，startupLatch=0， shutdownLatch=1
     startupComplete()
     try {
       var currentProcessorIndex = 0
@@ -600,14 +645,19 @@ private[kafka] class Acceptor(val endPoint: EndPoint,
         try {
           val ready = nioSelector.select(500)
           if (ready > 0) {
+            // TODO: 获取到所有的selectionKey
             val keys = nioSelector.selectedKeys()
             val iter = keys.iterator()
+            // TODO: 遍历selectionKey
             while (iter.hasNext && isRunning) {
               try {
+                // TODO: 其中的一个selectionKey
                 val key = iter.next
                 iter.remove()
 
+                // TODO: selectionKey是不是 OP_ACCEPT
                 if (key.isAcceptable) {
+                  // TODO: 从selectionKey中获得socketChannel对象
                   accept(key).foreach { socketChannel =>
                     // Assign the channel to the next processor (using round-robin) to which the
                     // channel can be added without blocking. If newConnections queue is full on
@@ -616,13 +666,17 @@ private[kafka] class Acceptor(val endPoint: EndPoint,
                     var processor: Processor = null
                     do {
                       retriesLeft -= 1
+                      // TODO: 从 processors 中获取到对应的 processor
                       processor = synchronized {
+                        // TODO: 当processors的长度大于1的时候，这里可以做到轮训效果 
                         // adjust the index (if necessary) and retrieve the processor atomically for
                         // correct behaviour in case the number of processors is reduced dynamically
                         currentProcessorIndex = currentProcessorIndex % processors.length
                         processors(currentProcessorIndex)
                       }
                       currentProcessorIndex += 1
+                      // TODO: 把这个socketChannel分配给这个processor 进行处理
+                      //  process处理远端过来的socketChannel，会直接把 socketChannel加入到processor的newConnections队列
                     } while (!assignNewConnection(socketChannel, processor, retriesLeft == 0))
                   }
                 } else
@@ -650,10 +704,17 @@ private[kafka] class Acceptor(val endPoint: EndPoint,
   }
 
   /**
+   * todo
+   *    1. 创建 socketAddress，
+   *    2. 创建 ServerSocketChannel
+   *    3. 对 ServerSocketChannel 进行配置
+   *    4. 把 socketAddress绑定到 ServerSocketChannel上面
+   *    5. 返回 ServerSocketChannel对象
   * Create a server socket to listen for connections on.
   */
   private def openServerSocket(host: String, port: Int): ServerSocketChannel = {
     val socketAddress =
+    // TODO: 没有配置host ，会使用 0.0.0.0 or ::0
       if (host == null || host.trim.isEmpty)
         new InetSocketAddress(port)
       else
@@ -661,9 +722,11 @@ private[kafka] class Acceptor(val endPoint: EndPoint,
     val serverChannel = ServerSocketChannel.open()
     serverChannel.configureBlocking(false)
     if (recvBufferSize != Selectable.USE_DEFAULT_BUFFER_SIZE)
+    // TODO: 设置接收buffer size=100KB
       serverChannel.socket().setReceiveBufferSize(recvBufferSize)
 
     try {
+      // TODO: 绑定 socket地址
       serverChannel.socket.bind(socketAddress)
       info(s"Awaiting socket connections on ${socketAddress.getHostString}:${serverChannel.socket.getLocalPort}.")
     } catch {
@@ -675,17 +738,27 @@ private[kafka] class Acceptor(val endPoint: EndPoint,
 
   /**
    * Accept a new connection
+   * todo
+   *       1. 从SelectionKey中获取到serverSocketChannel
+   *       2. serverSocketChannel调用accept()方法获得socketChannel
+   *       3. 对socketChannel进行配置
+   *       4. 返回 socketChannel
    */
   private def accept(key: SelectionKey): Option[SocketChannel] = {
+    // TODO: 从selectionKey中获取 serverSocketChannel
     val serverSocketChannel = key.channel().asInstanceOf[ServerSocketChannel]
+    // TODO:  调用 accept()方法获得 socketChannel
     val socketChannel = serverSocketChannel.accept()
     try {
       connectionQuotas.inc(endPoint.listenerName, socketChannel.socket.getInetAddress, blockedPercentMeter)
+      // TODO: 对socketChannel进行配置
       socketChannel.configureBlocking(false)
       socketChannel.socket().setTcpNoDelay(true)
       socketChannel.socket().setKeepAlive(true)
       if (sendBufferSize != Selectable.USE_DEFAULT_BUFFER_SIZE)
+      // TODO: socketChannel的发送buffer size为100KB
         socketChannel.socket().setSendBufferSize(sendBufferSize)
+      // TODO: 返回 socketChannel
       Some(socketChannel)
     } catch {
       case e: TooManyConnectionsException =>
@@ -696,7 +769,9 @@ private[kafka] class Acceptor(val endPoint: EndPoint,
   }
 
   private def assignNewConnection(socketChannel: SocketChannel, processor: Processor, mayBlock: Boolean): Boolean = {
+    // TODO: process处理远端过来的socketChannel，会直接把 socketChannel加入到processor的newConnections队列
     if (processor.accept(socketChannel, mayBlock, blockedPercentMeter)) {
+      // TODO: 接收新连接来自远端地址xxx在本地地址0.0.0.0, processor id=0
       debug(s"Accepted connection from ${socketChannel.socket.getRemoteSocketAddress} on" +
         s" ${socketChannel.socket.getLocalSocketAddress} and assigned it to processor ${processor.id}," +
         s" sendBufferSize [actual|requested]: [${socketChannel.socket.getSendBufferSize}|$sendBufferSize]" +
@@ -740,7 +815,8 @@ private[kafka] class Processor(val id: Int,
                                credentialProvider: CredentialProvider,
                                memoryPool: MemoryPool,
                                logContext: LogContext,
-                               connectionQueueSize: Int = ConnectionQueueSize) extends AbstractServerThread(connectionQuotas) with KafkaMetricsGroup {
+                               connectionQueueSize: Int = ConnectionQueueSize) // TODO: 20
+  extends AbstractServerThread(connectionQuotas) with KafkaMetricsGroup {
 
   private object ConnectionId {
     def fromString(s: String): Option[ConnectionId] = s.split("-") match {
@@ -757,6 +833,7 @@ private[kafka] class Processor(val id: Int,
     override def toString: String = s"$localHost:$localPort-$remoteHost:$remotePort-$index"
   }
 
+  // TODO: 所有的新连接队列 ，默认为20个长度
   private val newConnections = new ArrayBlockingQueue[SocketChannel](connectionQueueSize)
   private val inflightResponses = mutable.Map[String, RequestChannel.Response]()
   private val responseQueue = new LinkedBlockingDeque[RequestChannel.Response]()
@@ -1067,6 +1144,7 @@ private[kafka] class Processor(val id: Int,
   def accept(socketChannel: SocketChannel,
              mayBlock: Boolean,
              acceptorIdlePercentMeter: com.yammer.metrics.core.Meter): Boolean = {
+    // TODO: 把socketChannel放入到 newConnections队列里面
     val accepted = {
       if (newConnections.offer(socketChannel))
         true
@@ -1079,7 +1157,9 @@ private[kafka] class Processor(val id: Int,
         false
     }
     if (accepted)
+    // TODO: 唤醒线程进行处理新来的连接socketChannel
       wakeup()
+    // TODO: 返回是否加入队列newConnections成功结果
     accepted
   }
 
@@ -1182,8 +1262,11 @@ private[kafka] class Processor(val id: Int,
 
 class ConnectionQuotas(config: KafkaConfig, time: Time, metrics: Metrics) extends Logging with AutoCloseable {
 
+  // TODO: 默认Int.MaxValue 
   @volatile private var defaultMaxConnectionsPerIp: Int = config.maxConnectionsPerIp
+  // TODO: 自定义的连接数限制 <host, count>，即每个host的最大连接数
   @volatile private var maxConnectionsPerIpOverrides = config.maxConnectionsPerIpOverrides.map { case (host, count) => (InetAddress.getByName(host), count) }
+  // TODO: 默认为Int.MaxValue 
   @volatile private var brokerMaxConnections = config.maxConnections
   private val counts = mutable.Map[InetAddress, Int]()
 
