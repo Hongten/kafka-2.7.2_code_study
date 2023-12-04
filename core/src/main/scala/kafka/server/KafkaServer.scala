@@ -366,10 +366,15 @@ class KafkaServer(val config: KafkaConfig, time: Time = Time.SYSTEM, threadNameP
         // TODO: 调用startup方法
         socketServer.startup(startProcessingRequests = false)
 
+        // TODO: 副本同步manager启动
         /* start replica manager */
+        // TODO: 创建  BrokerToControllerChannelManagerImpl 实例，实现broker和controller之间的连接通信，进行metadata的同步
         brokerToControllerChannelManager = new BrokerToControllerChannelManagerImpl(metadataCache, time, metrics, config, threadNamePrefix)
+        // TODO: 创建 副本同步manager
         replicaManager = createReplicaManager(isShuttingDown)
+        // TODO: 启动  replicaManager
         replicaManager.startup()
+        // TODO: 启动 brokerToControllerChannelManager
         brokerToControllerChannelManager.start()
 
         val brokerInfo = createBrokerInfo
@@ -493,9 +498,13 @@ class KafkaServer(val config: KafkaConfig, time: Time = Time.SYSTEM, threadNameP
     metricsContext
   }
 
+  // TODO: 1. 创建  AlterIsrManagerImpl 实例
+  //  2. 创建 ReplicaManager实例
   protected def createReplicaManager(isShuttingDown: AtomicBoolean): ReplicaManager = {
+    // TODO: 创建  AlterIsrManagerImpl 实例
     val alterIsrManager = new AlterIsrManagerImpl(brokerToControllerChannelManager, kafkaScheduler,
       time, config.brokerId, () => kafkaController.brokerEpoch)
+    // TODO: 创建 ReplicaManager实例
     new ReplicaManager(config, metrics, time, zkClient, kafkaScheduler, logManager, isShuttingDown, quotaManagers,
       brokerTopicStats, metadataCache, logDirFailureChannel, alterIsrManager)
   }

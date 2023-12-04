@@ -79,7 +79,9 @@ class KafkaZkClient private[zk] (zooKeeperClient: ZooKeeperClient, isSecure: Boo
    * @return the created path (including the appended monotonically increasing number)
    */
   private[kafka] def createSequentialPersistentPath(path: String, data: Array[Byte]): String = {
+    // TODO:  创建request
     val createRequest = CreateRequest(path, data, defaultAcls(path), CreateMode.PERSISTENT_SEQUENTIAL)
+    // TODO: 发送请求
     val createResponse = retryRequestUntilConnected(createRequest)
     createResponse.maybeThrow()
     createResponse.name
@@ -1184,6 +1186,8 @@ class KafkaZkClient private[zk] (zooKeeperClient: ZooKeeperClient, isSecure: Boo
 
   def propagateLogDirEvent(brokerId: Int): Unit = {
     val logDirEventNotificationPath: String = createSequentialPersistentPath(
+      // TODO: /log_dir_event_notification/log_dir_event_
+      // TODO: {"version":1, "broker":1001, "event": 1}
       LogDirEventNotificationZNode.path + "/" + LogDirEventNotificationSequenceZNode.SequenceNumberPrefix,
       LogDirEventNotificationSequenceZNode.encode(brokerId))
     debug(s"Added $logDirEventNotificationPath for broker $brokerId")

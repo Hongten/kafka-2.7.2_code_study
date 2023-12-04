@@ -48,10 +48,11 @@ trait AlterIsrManager {
 
 case class AlterIsrItem(topicPartition: TopicPartition, leaderAndIsr: LeaderAndIsr, callback: Either[Errors, LeaderAndIsr] => Unit)
 
-class AlterIsrManagerImpl(val controllerChannelManager: BrokerToControllerChannelManager,
-                          val scheduler: Scheduler,
+// TODO: ISR修改Manager实现
+class AlterIsrManagerImpl(val controllerChannelManager: BrokerToControllerChannelManager, // TODO: broker和controller进行metadata同步manager
+                          val scheduler: Scheduler,                                       // TODO: kafka后台运行线程，BackgroundThreads = 10 默认值
                           val time: Time,
-                          val brokerId: Int,
+                          val brokerId: Int,                                              // TODO: 1001
                           val brokerEpochSupplier: () => Long) extends AlterIsrManager with Logging with KafkaMetricsGroup {
 
   // Used to allow only one pending ISR update per partition
@@ -63,6 +64,7 @@ class AlterIsrManagerImpl(val controllerChannelManager: BrokerToControllerChanne
   private val lastIsrPropagationMs = new AtomicLong(0)
 
   override def start(): Unit = {
+    // TODO: 启动 send-alter-isr 定时任务
     scheduler.schedule("send-alter-isr", propagateIsrChanges, 50, 50, TimeUnit.MILLISECONDS)
   }
 

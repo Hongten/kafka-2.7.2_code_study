@@ -51,30 +51,38 @@ trait BrokerToControllerChannelManager {
  * The maximum number of in-flight requests are set to one to ensure orderly response from the controller, therefore
  * care must be taken to not block on outstanding requests for too long.
  */
-class BrokerToControllerChannelManagerImpl(metadataCache: kafka.server.MetadataCache,
+class BrokerToControllerChannelManagerImpl(metadataCache: kafka.server.MetadataCache, // TODO: metadata缓存数据
                                            time: Time,
                                            metrics: Metrics,
                                            config: KafkaConfig,
                                            threadNamePrefix: Option[String] = None) extends BrokerToControllerChannelManager with Logging {
+  // TODO: 请求队列
   private val requestQueue = new LinkedBlockingDeque[BrokerToControllerQueueItem]
+  // TODO: [broker-10010-to-controller]
   private val logContext = new LogContext(s"[broker-${config.brokerId}-to-controller] ")
   private val manualMetadataUpdater = new ManualMetadataUpdater()
+  // TODO: 请问线程创建
   private val requestThread = newRequestThread
 
+  // TODO: 线程启动
   override def start(): Unit = {
     requestThread.start()
   }
 
+  // TODO: 线程关闭
   override def shutdown(): Unit = {
     requestThread.shutdown()
     requestThread.awaitShutdown()
   }
 
   private[server] def newRequestThread = {
+    // TODO:  ListenerName("PLAINTEXT")
     val brokerToControllerListenerName = config.controlPlaneListenerName.getOrElse(config.interBrokerListenerName)
+    // TODO: PLAINTEXT(0, "PLAINTEXT")
     val brokerToControllerSecurityProtocol = config.controlPlaneSecurityProtocol.getOrElse(config.interBrokerSecurityProtocol)
 
     val networkClient = {
+      // TODO: 创建  channelBuilder 实例
       val channelBuilder = ChannelBuilders.clientChannelBuilder(
         brokerToControllerSecurityProtocol,
         JaasContext.Type.SERVER,
@@ -85,6 +93,7 @@ class BrokerToControllerChannelManagerImpl(metadataCache: kafka.server.MetadataC
         config.saslInterBrokerHandshakeRequestEnable,
         logContext
       )
+      // TODO: 创建 selector 
       val selector = new Selector(
         NetworkReceive.UNLIMITED,
         Selector.NO_IDLE_TIMEOUT_MS,
@@ -96,6 +105,7 @@ class BrokerToControllerChannelManagerImpl(metadataCache: kafka.server.MetadataC
         channelBuilder,
         logContext
       )
+      // TODO: 创建NetworkClient实例 
       new NetworkClient(
         selector,
         manualMetadataUpdater,
@@ -115,11 +125,13 @@ class BrokerToControllerChannelManagerImpl(metadataCache: kafka.server.MetadataC
         logContext
       )
     }
+    // TODO: threadNamePrefix=None , 返回 broker-1001-to-controller-send-thread
     val threadName = threadNamePrefix match {
       case None => s"broker-${config.brokerId}-to-controller-send-thread"
       case Some(name) => s"$name:broker-${config.brokerId}-to-controller-send-thread"
     }
 
+    // TODO: 创建  BrokerToControllerRequestThread 线程实例
     new BrokerToControllerRequestThread(networkClient, manualMetadataUpdater, requestQueue, metadataCache, config,
       brokerToControllerListenerName, time, threadName)
   }
@@ -144,8 +156,10 @@ class BrokerToControllerRequestThread(networkClient: KafkaClient,
                                       threadName: String)
   extends InterBrokerSendThread(threadName, networkClient, time, isInterruptible = false) {
 
+  // TODO: 记录controller节点 
   private var activeController: Option[Node] = None
 
+  // TODO: 默认30s 
   override def requestTimeoutMs: Int = config.controllerSocketTimeoutMs
 
   override def generateRequests(): Iterable[RequestAndCompletionHandler] = {

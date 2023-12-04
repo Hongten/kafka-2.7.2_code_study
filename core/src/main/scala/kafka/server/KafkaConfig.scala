@@ -156,6 +156,7 @@ object Defaults {
   val LeaderImbalanceCheckIntervalSeconds = 300
   val UncleanLeaderElectionEnable = false
   val InterBrokerSecurityProtocol = SecurityProtocol.PLAINTEXT.toString
+  // TODO: 2.7-IV2
   val InterBrokerProtocolVersion = ApiVersion.latestVersion.toString
 
   /** ********* Controlled shutdown configuration ***********/
@@ -1690,12 +1691,14 @@ class KafkaConfig(val props: java.util.Map[_, _], doLog: Boolean, dynamicConfigO
   }
 
   def controlPlaneListener: Option[EndPoint] = {
+    // TODO:  对于一个broker，我们没有配置 control.plane.listener.name，那么这里应该返回一个Empty
     controlPlaneListenerName.map { listenerName =>
       listeners.filter(endpoint => endpoint.listenerName.value() == listenerName.value()).head
     }
   }
 
   def dataPlaneListeners: Seq[EndPoint] = {
+    // TODO: control.plane.listener.name为空，这里会返回 listeners=PLAINTEXT://:9092
     Option(getString(KafkaConfig.ControlPlaneListenerNameProp)) match {
       case Some(controlPlaneListenerName) => listeners.filterNot(_.listenerName.value() == controlPlaneListenerName)
       case None => listeners
@@ -1716,6 +1719,7 @@ class KafkaConfig(val props: java.util.Map[_, _], doLog: Boolean, dynamicConfigO
   }
 
   private def getInterBrokerListenerNameAndSecurityProtocol: (ListenerName, SecurityProtocol) = {
+    // TODO: inter.broker.listener.name默认为空
     Option(getString(KafkaConfig.InterBrokerListenerNameProp)) match {
       case Some(_) if originals.containsKey(KafkaConfig.InterBrokerSecurityProtocolProp) =>
         throw new ConfigException(s"Only one of ${KafkaConfig.InterBrokerListenerNameProp} and " +
@@ -1727,8 +1731,10 @@ class KafkaConfig(val props: java.util.Map[_, _], doLog: Boolean, dynamicConfigO
             s"${KafkaConfig.InterBrokerListenerNameProp} not found in ${KafkaConfig.ListenerSecurityProtocolMapProp}."))
         (listenerName, securityProtocol)
       case None =>
+        // TODO: InterBrokerSecurityProtocolProp=PLAINTEXT，返回  PLAINTEXT(0, "PLAINTEXT")
         val securityProtocol = getSecurityProtocol(getString(KafkaConfig.InterBrokerSecurityProtocolProp),
           KafkaConfig.InterBrokerSecurityProtocolProp)
+        // TODO:  (ListenerName("PLAINTEXT"), PLAINTEXT(0, "PLAINTEXT"))
         (ListenerName.forSecurityProtocol(securityProtocol), securityProtocol)
     }
   }
@@ -1748,6 +1754,7 @@ class KafkaConfig(val props: java.util.Map[_, _], doLog: Boolean, dynamicConfigO
   }
 
   private def getSecurityProtocol(protocolName: String, configName: String): SecurityProtocol = {
+    // TODO: 校验是否为合法的protocolName , 这里传递是 PLAINTEXT，返回  PLAINTEXT(0, "PLAINTEXT")
     try SecurityProtocol.forName(protocolName)
     catch {
       case _: IllegalArgumentException =>

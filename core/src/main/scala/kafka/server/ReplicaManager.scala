@@ -186,23 +186,31 @@ object ReplicaManager {
   )
 }
 
-class ReplicaManager(val config: KafkaConfig,
-                     metrics: Metrics,
-                     time: Time,
-                     val zkClient: KafkaZkClient,
-                     scheduler: Scheduler,
-                     val logManager: LogManager,
-                     val isShuttingDown: AtomicBoolean,
-                     quotaManagers: QuotaManagers,
-                     val brokerTopicStats: BrokerTopicStats,
-                     val metadataCache: MetadataCache,
-                     logDirFailureChannel: LogDirFailureChannel,
-                     val delayedProducePurgatory: DelayedOperationPurgatory[DelayedProduce],
-                     val delayedFetchPurgatory: DelayedOperationPurgatory[DelayedFetch],
-                     val delayedDeleteRecordsPurgatory: DelayedOperationPurgatory[DelayedDeleteRecords],
-                     val delayedElectLeaderPurgatory: DelayedOperationPurgatory[DelayedElectLeader],
-                     threadNamePrefix: Option[String],
-                     val alterIsrManager: AlterIsrManager) extends Logging with KafkaMetricsGroup {
+// TODO: ReplicaManager需要处理的请求有6种
+//  1. LeaderAndIsr请求
+//  2. StopReplica请求
+//  3. UpdateMetadata 请求
+//  4. Producer 请求
+//  5. Fetch请求
+//  6. ListOffset 请求
+class ReplicaManager(val config: KafkaConfig, // TODO: 配置信息
+                     metrics: Metrics,// TODO: 监控指标
+                     time: Time,// TODO: 定时器
+                     val zkClient: KafkaZkClient,// TODO: zk客户端
+                     scheduler: Scheduler,// TODO: kafka调度器
+                     val logManager: LogManager,// TODO: 日志管理器
+                     val isShuttingDown: AtomicBoolean,// TODO: 是否已经关闭标识
+                     quotaManagers: QuotaManagers,// TODO: quota管理器
+                     val brokerTopicStats: BrokerTopicStats,// TODO: broker topic监控指标
+                     val metadataCache: MetadataCache,// TODO: broker元数据缓存
+                     logDirFailureChannel: LogDirFailureChannel,// TODO:
+                     val delayedProducePurgatory: DelayedOperationPurgatory[DelayedProduce],// TODO: 处理延时producer请求的purgatory
+                     val delayedFetchPurgatory: DelayedOperationPurgatory[DelayedFetch],// TODO: 处理延时fetch请求的purgatory
+                     val delayedDeleteRecordsPurgatory: DelayedOperationPurgatory[DelayedDeleteRecords],// TODO: 处理延时deleteRecord请求的purgatory
+                     val delayedElectLeaderPurgatory: DelayedOperationPurgatory[DelayedElectLeader],// TODO: 处理延时Electleader请求的purgatory
+                     threadNamePrefix: Option[String],// TODO: 默认None
+                     val alterIsrManager: AlterIsrManager) // TODO: 修改Isr管理器
+  extends Logging with KafkaMetricsGroup {
 
   def this(config: KafkaConfig,
            metrics: Metrics,
@@ -221,13 +229,13 @@ class ReplicaManager(val config: KafkaConfig,
       quotaManagers, brokerTopicStats, metadataCache, logDirFailureChannel,
       DelayedOperationPurgatory[DelayedProduce](
         purgatoryName = "Produce", brokerId = config.brokerId,
-        purgeInterval = config.producerPurgatoryPurgeIntervalRequests),
+        purgeInterval = config.producerPurgatoryPurgeIntervalRequests),         // 1000
       DelayedOperationPurgatory[DelayedFetch](
-        purgatoryName = "Fetch", brokerId = config.brokerId,
-        purgeInterval = config.fetchPurgatoryPurgeIntervalRequests),
+        purgatoryName = "Fetch", brokerId = config.brokerId,                    // 1001
+        purgeInterval = config.fetchPurgatoryPurgeIntervalRequests),            // 1000
       DelayedOperationPurgatory[DelayedDeleteRecords](
         purgatoryName = "DeleteRecords", brokerId = config.brokerId,
-        purgeInterval = config.deleteRecordsPurgatoryPurgeIntervalRequests),
+        purgeInterval = config.deleteRecordsPurgatoryPurgeIntervalRequests),    // 1
       DelayedOperationPurgatory[DelayedElectLeader](
         purgatoryName = "ElectLeader", brokerId = config.brokerId),
       threadNamePrefix, alterIsrManager)
@@ -235,17 +243,22 @@ class ReplicaManager(val config: KafkaConfig,
 
   /* epoch of the controller that last changed the leader */
   @volatile var controllerEpoch: Int = KafkaController.InitialControllerEpoch
+  // TODO: 1001
   private val localBrokerId = config.brokerId
+  // TODO: 所有的partition
   private val allPartitions = new Pool[TopicPartition, HostedPartition](
     valueFactory = Some(tp => HostedPartition.Online(Partition(tp, time, this)))
   )
   private val replicaStateChangeLock = new Object
+  // TODO: replicaFetchManager创建
   val replicaFetcherManager = createReplicaFetcherManager(metrics, time, threadNamePrefix, quotaManagers.follower)
+  // TODO: replicaAlterLogDirsManager创建
   val replicaAlterLogDirsManager = createReplicaAlterLogDirsManager(quotaManagers.alterLogDirs, brokerTopicStats)
   private val highWatermarkCheckPointThreadStarted = new AtomicBoolean(false)
   @volatile var highWatermarkCheckpoints: Map[String, OffsetCheckpointFile] = logManager.liveLogDirs.map(dir =>
     (dir.getAbsolutePath, new OffsetCheckpointFile(new File(dir, ReplicaManager.HighWatermarkFilename), logDirFailureChannel))).toMap
 
+  // TODO: [ReplicaManager broker=1001]
   this.logIdent = s"[ReplicaManager broker=$localBrokerId] "
   private val stateChangeLogger = new StateChangeLogger(localBrokerId, inControllerContext = false, None)
 
@@ -257,7 +270,9 @@ class ReplicaManager(val config: KafkaConfig,
   private var logDirFailureHandler: LogDirFailureHandler = null
 
   private class LogDirFailureHandler(name: String, haltBrokerOnDirFailure: Boolean) extends ShutdownableThread(name) {
+    // TODO: haltBrokerOnDirFailure=false 
     override def doWork(): Unit = {
+      // TODO: 获取到新的offline的Log dir 
       val newOfflineLogDir = logDirFailureChannel.takeNextOfflineLogDir()
       if (haltBrokerOnDirFailure) {
         fatal(s"Halting broker because dir $newOfflineLogDir is offline")
@@ -338,6 +353,7 @@ class ReplicaManager(val config: KafkaConfig,
   }
 
   def startup(): Unit = {
+    // TODO: 启动ISR过期检查定时任务
     // start ISR expiration thread
     // A follower can lag behind leader for up to config.replicaLagTimeMaxMs x 1.5 before it is removed from ISR
     scheduler.schedule("isr-expiration", maybeShrinkIsr _, period = config.replicaLagTimeMaxMs / 2, unit = TimeUnit.MILLISECONDS)
@@ -346,14 +362,18 @@ class ReplicaManager(val config: KafkaConfig,
       scheduler.schedule("isr-change-propagation", maybePropagateIsrChanges _,
         period = isrChangeNotificationConfig.checkIntervalMs, unit = TimeUnit.MILLISECONDS)
     } else {
+      // TODO: 这是是使用 alterIsrManager， 并且启动 alterIsrManager
       alterIsrManager.start()
     }
+    // TODO: 启动 shutdown-idle-replica-alter-log-dirs-thread定时任务
     scheduler.schedule("shutdown-idle-replica-alter-log-dirs-thread", shutdownIdleReplicaAlterLogDirsThread _, period = 10000L, unit = TimeUnit.MILLISECONDS)
 
     // If inter-broker protocol (IBP) < 1.0, the controller will send LeaderAndIsrRequest V0 which does not include isNew field.
     // In this case, the broker receiving the request cannot determine whether it is safe to create a partition if a log directory has failed.
     // Thus, we choose to halt the broker on any log diretory failure if IBP < 1.0
+    // TODO:  2.7-IV2， haltBrokerOnFailure=false
     val haltBrokerOnFailure = config.interBrokerProtocolVersion < KAFKA_1_0_IV0
+    // TODO: 创建LogDirFailureHandler 实例 
     logDirFailureHandler = new LogDirFailureHandler("LogDirFailureHandler", haltBrokerOnFailure)
     logDirFailureHandler.start()
   }
@@ -1791,23 +1811,29 @@ class ReplicaManager(val config: KafkaConfig,
    * @param dir                     the absolute path of the log directory
    * @param sendZkNotification      check if we need to send notification to zookeeper node (needed for unit test)
    */
+  // TODO: 如果一个log dir变为offline，e.g. 磁盘坏了，这个时候对应的处理逻辑
   def handleLogDirFailure(dir: String, sendZkNotification: Boolean = true): Unit = {
+    // TODO: 说明此时此刻，该offline log dir还在live dir里面才可以执行下面的逻辑，否则，直接返回
     if (!logManager.isLogDirOnline(dir))
       return
     warn(s"Stopping serving replicas in dir $dir")
     replicaStateChangeLock synchronized {
+      // TODO:  遍历所有的partition，找到log里面包含该dir的partition
       val newOfflinePartitions = nonOfflinePartitionsIterator.filter { partition =>
         partition.log.exists { _.parentDir == dir }
       }.map(_.topicPartition).toSet
 
+      // TODO: 遍历所有的partition，找到futureLog里面包含该dir的partition
       val partitionsWithOfflineFutureReplica = nonOfflinePartitionsIterator.filter { partition =>
         partition.futureLog.exists { _.parentDir == dir }
       }.toSet
 
+      // TODO: replicaFetchManager对包含该dir的partition移除Fetcher
       replicaFetcherManager.removeFetcherForPartitions(newOfflinePartitions)
       replicaAlterLogDirsManager.removeFetcherForPartitions(newOfflinePartitions ++ partitionsWithOfflineFutureReplica.map(_.topicPartition))
 
       partitionsWithOfflineFutureReplica.foreach(partition => partition.removeFutureLocalReplica(deleteFromLogDir = false))
+      // TODO: 标记partition为offline
       newOfflinePartitions.foreach { topicPartition =>
         markPartitionOffline(topicPartition)
       }
@@ -1819,6 +1845,7 @@ class ReplicaManager(val config: KafkaConfig,
       warn(s"Broker $localBrokerId stopped fetcher for partitions ${newOfflinePartitions.mkString(",")} and stopped moving logs " +
            s"for partitions ${partitionsWithOfflineFutureReplica.mkString(",")} because they are in the failed log directory $dir.")
     }
+    // TODO:  logManager处理 该dir
     logManager.handleLogDirFailure(dir)
 
     if (sendZkNotification)

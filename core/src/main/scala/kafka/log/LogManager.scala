@@ -223,12 +223,15 @@ class LogManager(logDirs: Seq[File],
   def handleLogDirFailure(dir: String): Unit = {
     warn(s"Stopping serving logs in dir $dir")
     logCreationOrDeletionLock synchronized {
+      // TODO: 这里的时候才会把该dir移出  _liveLogDirs
       _liveLogDirs.remove(new File(dir))
+      // TODO: 如果没有可用的dir，则停止kafka服务
       if (_liveLogDirs.isEmpty) {
         fatal(s"Shutdown broker because all log dirs in ${logDirs.mkString(", ")} have failed")
         Exit.halt(1)
       }
 
+      // TODO:  recoveryPointCheckpoints， logStartOffsetCheckpoints里面排除文件绝对路径为该dir的记录
       recoveryPointCheckpoints = recoveryPointCheckpoints.filter { case (file, _) => file.getAbsolutePath != dir }
       logStartOffsetCheckpoints = logStartOffsetCheckpoints.filter { case (file, _) => file.getAbsolutePath != dir }
       if (cleaner != null)
@@ -1236,7 +1239,7 @@ class LogManager(logDirs: Seq[File],
     // The logDir should be an absolute path
     if (!logDirs.exists(_.getAbsolutePath == logDir))
       throw new LogDirNotFoundException(s"Log dir $logDir is not found in the config.")
-
+    // TODO: 该路径 logDir是否为live
     _liveLogDirs.contains(new File(logDir))
   }
 

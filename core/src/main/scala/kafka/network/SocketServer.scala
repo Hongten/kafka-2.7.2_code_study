@@ -139,6 +139,8 @@ class SocketServer(val config: KafkaConfig,
    * @param startProcessingRequests Flag indicating whether `Processor`s must be started.
    */
   // TODO: startProcessingRequests=false
+  // TODO: 1. 创建 连接quota实例
+  //  2. 创建控制层和数据层的acceptor和processor
   def startup(startProcessingRequests: Boolean = true): Unit = {
     // TODO: 同步操作 
     this.synchronized {
@@ -146,13 +148,15 @@ class SocketServer(val config: KafkaConfig,
       connectionQuotas = new ConnectionQuotas(config, time, metrics)
       // TODO: 创建控制层Acceptor和Processor，默认情况config.controlPlaneListener为空
       createControlPlaneAcceptorAndProcessor(config.controlPlaneListener)
-      // TODO: 创建数据层Acceptor和Processor
+      // TODO: 创建数据层Acceptor和Processor， numNetworkThreads=3（网络线程数），我们有配置num.io.threads=48，根据CPU数进行调整
       createDataPlaneAcceptorsAndProcessors(config.numNetworkThreads, config.dataPlaneListeners)
+      // TODO: 刚开始的时候为false ，这里是不会启动的
       if (startProcessingRequests) {
         this.startProcessingRequests()
       }
     }
 
+    // TODO: metrics相关
     newGauge(s"${DataPlaneMetricPrefix}NetworkProcessorAvgIdlePercent", () => SocketServer.this.synchronized {
       val ioWaitRatioMetricNames = dataPlaneProcessors.values.asScala.iterator.map { p =>
         metrics.metricName("io-wait-ratio", MetricsGroup, p.metricTags)
@@ -273,17 +277,28 @@ class SocketServer(val config: KafkaConfig,
 
   private def createDataPlaneAcceptorsAndProcessors(dataProcessorsPerListener: Int,
                                                     endpoints: Seq[EndPoint]): Unit = {
+    // TODO: endpoints=PLAINTEXT://:9092 
     endpoints.foreach { endpoint =>
+      // TODO: 设置连接quota 
       connectionQuotas.addListener(config, endpoint.listenerName)
+      // TODO: 创建1个acceptor , DataPlaneMetricPrefix=""
       val dataPlaneAcceptor = createAcceptor(endpoint, DataPlaneMetricPrefix)
+      // TODO: 创建和num.io.threads相同个数的processor ， dataProcessorsPerListener=网络线程数
       addDataPlaneProcessors(dataPlaneAcceptor, endpoint, dataProcessorsPerListener)
+      // TODO: <PLAINTEXT://:9092, Acceptor>
       dataPlaneAcceptors.put(endpoint, dataPlaneAcceptor)
       info(s"Created data-plane acceptor and processors for endpoint : ${endpoint.listenerName}")
     }
   }
 
+  // TODO: 1. 遍历 配置的 endpointOpt，默认情况下为空，
+  //  2. 如果有配置，添加连接quota
+  //  3. 创建Acceptor
+  //  4. 创建processor
+  //  5. 把创建的processor添加到Acceptor里面并启动
   private def createControlPlaneAcceptorAndProcessor(endpointOpt: Option[EndPoint]): Unit = {
-    // TODO: 创建控制层Acceptor和Processor
+    // TODO: 创建控制层Acceptor和Processor， 默认情况，这里是不会执行的，因为endpointOpt为空
+    // TODO: 但是如果不为空，则进程控制层的创建
     endpointOpt.foreach { endpoint =>
       connectionQuotas.addListener(config, endpoint.listenerName)
       // TODO: ControlPlaneMetricPrefix="ControlPlane"
@@ -296,6 +311,7 @@ class SocketServer(val config: KafkaConfig,
       listenerProcessors += controlPlaneProcessor
       controlPlaneRequestChannelOpt.foreach(_.addProcessor(controlPlaneProcessor))
       nextProcessorId += 1
+      // TODO: 把processor加入到Acceptor里面并启动processor ， ControlPlaneThreadPrefix=control-plan
       controlPlaneAcceptor.addProcessors(listenerProcessors, ControlPlaneThreadPrefix)
       info(s"Created control-plane acceptor and processor for endpoint : ${endpoint.listenerName}")
     }
@@ -312,10 +328,14 @@ class SocketServer(val config: KafkaConfig,
     new Acceptor(endPoint, sendBufferSize, recvBufferSize, brokerId, connectionQuotas, metricPrefix)
   }
 
+  // TODO: 1.根据num.io.threads数目，创建相同数目的processor
+  //  2.把所有的processor添加到acceptor，然后启动所有的processor
   private def addDataPlaneProcessors(acceptor: Acceptor, endpoint: EndPoint, newProcessorsPerListener: Int): Unit = {
+    // TODO: PLAINTEXT
     val listenerName = endpoint.listenerName
     val securityProtocol = endpoint.securityProtocol
     val listenerProcessors = new ArrayBuffer[Processor]()
+    // TODO:  创建和num.io.threads相同个数的processor
     for (_ <- 0 until newProcessorsPerListener) {
       val processor = newProcessor(nextProcessorId, dataPlaneRequestChannel, connectionQuotas, listenerName, securityProtocol, memoryPool)
       listenerProcessors += processor
@@ -323,6 +343,7 @@ class SocketServer(val config: KafkaConfig,
       nextProcessorId += 1
     }
     listenerProcessors.foreach(p => dataPlaneProcessors.put(p.id, p))
+    // TODO: 把processor添加到acceptor，然后启动所有的processor
     acceptor.addProcessors(listenerProcessors, DataPlaneThreadPrefix)
   }
 
@@ -585,6 +606,7 @@ private[kafka] class Acceptor(val endPoint: EndPoint, // TODO: PLAINTEXT://:9092
   private[network] def addProcessors(newProcessors: Buffer[Processor], processorThreadPrefix: String): Unit = synchronized {
     processors ++= newProcessors
     if (processorsStarted.get)
+    // TODO: 启动新添加的processor
       startProcessors(newProcessors, processorThreadPrefix)
   }
 

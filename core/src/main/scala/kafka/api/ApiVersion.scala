@@ -115,7 +115,9 @@ object ApiVersion {
    * Return an `ApiVersion` instance for `versionString`, which can be in a variety of formats (e.g. "0.8.0", "0.8.0.x",
    * "0.10.0", "0.10.0-IV1"). `IllegalArgumentException` is thrown if `versionString` cannot be mapped to an `ApiVersion`.
    */
+  // TODO: 返回 2.7-IV2
   def apply(versionString: String): ApiVersion = {
+    // TODO: 2.7-IV2
     val versionSegments = versionString.split('.').toSeq
     val numSegments = if (versionString.startsWith("0.")) 3 else 2
     val key = versionSegments.take(numSegments).mkString(".")
