@@ -21,6 +21,7 @@ import java.util.concurrent.{CountDownLatch, TimeUnit}
 
 import org.apache.kafka.common.internals.FatalExitError
 
+// TODO: 该抽象类继承了 Thread， 需要重写run()方法
 abstract class ShutdownableThread(val name: String, val isInterruptible: Boolean = true)
         extends Thread(name) with Logging {
   this.setDaemon(false)
@@ -88,6 +89,7 @@ abstract class ShutdownableThread(val name: String, val isInterruptible: Boolean
    */
   def doWork(): Unit
 
+  // TODO: 因为继承了Thread类，所以重写run()方法，在该方法中，调用doWork() 方法，即doWork()才是真正的工作的方法，我们的task都放在这个方法里面
   override def run(): Unit = {
     isStarted = true
     info("Starting")

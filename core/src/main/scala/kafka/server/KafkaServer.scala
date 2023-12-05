@@ -374,7 +374,7 @@ class KafkaServer(val config: KafkaConfig, time: Time = Time.SYSTEM, threadNameP
         replicaManager = createReplicaManager(isShuttingDown)
         // TODO: 启动  replicaManager
         replicaManager.startup()
-        // TODO: 启动 brokerToControllerChannelManager
+        // TODO: 启动 brokerToControllerChannelManager，该方法里面会创建BrokerToControllerRequestThread实例，然后启动该线程
         brokerToControllerChannelManager.start()
 
         val brokerInfo = createBrokerInfo

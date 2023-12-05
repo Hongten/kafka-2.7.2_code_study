@@ -109,16 +109,16 @@ class BrokerToControllerChannelManagerImpl(metadataCache: kafka.server.MetadataC
       new NetworkClient(
         selector,
         manualMetadataUpdater,
-        config.brokerId.toString,
+        config.brokerId.toString,           //todo 1001
         1,
         50,
         50,
-        Selectable.USE_DEFAULT_BUFFER_SIZE,
-        Selectable.USE_DEFAULT_BUFFER_SIZE,
-        config.requestTimeoutMs,
-        config.connectionSetupTimeoutMs,
-        config.connectionSetupTimeoutMaxMs,
-        ClientDnsLookup.USE_ALL_DNS_IPS,
+        Selectable.USE_DEFAULT_BUFFER_SIZE, //todo -1
+        Selectable.USE_DEFAULT_BUFFER_SIZE, //todo -1
+        config.requestTimeoutMs,            //todo 40s
+        config.connectionSetupTimeoutMs,    //todo 10s
+        config.connectionSetupTimeoutMaxMs, //todo 127s
+        ClientDnsLookup.USE_ALL_DNS_IPS,    //todo use_all_dns_ips
         time,
         false,
         new ApiVersions,

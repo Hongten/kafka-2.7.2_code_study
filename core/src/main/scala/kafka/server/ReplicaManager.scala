@@ -278,6 +278,7 @@ class ReplicaManager(val config: KafkaConfig, // TODO: 配置信息
         fatal(s"Halting broker because dir $newOfflineLogDir is offline")
         Exit.halt(1)
       }
+      // TODO: 处理offline log dir
       handleLogDirFailure(newOfflineLogDir)
     }
   }
@@ -352,6 +353,10 @@ class ReplicaManager(val config: KafkaConfig, // TODO: 配置信息
     debug("Request key %s unblocked %d ElectLeader.".format(key.keyLabel, completed))
   }
 
+  // TODO: 1. 启动ISR过期检查定时任务
+  //       2. 启动alterIsrManager
+  //       3. 启动shutdown-idle-replica-alter-log-dirs-thread定时任务
+  //       4. 创建LogDIRFailureHandler线程，并启动
   def startup(): Unit = {
     // TODO: 启动ISR过期检查定时任务
     // start ISR expiration thread
@@ -373,8 +378,9 @@ class ReplicaManager(val config: KafkaConfig, // TODO: 配置信息
     // Thus, we choose to halt the broker on any log diretory failure if IBP < 1.0
     // TODO:  2.7-IV2， haltBrokerOnFailure=false
     val haltBrokerOnFailure = config.interBrokerProtocolVersion < KAFKA_1_0_IV0
-    // TODO: 创建LogDirFailureHandler 实例 
+    // TODO: 创建LogDirFailureHandler 实例 ，这里是创建名字为 LogDirFailureHandler 的线程，然后调用start()方法进行启动
     logDirFailureHandler = new LogDirFailureHandler("LogDirFailureHandler", haltBrokerOnFailure)
+    // TODO: 调用 doWork() 方法
     logDirFailureHandler.start()
   }
 
@@ -1813,7 +1819,8 @@ class ReplicaManager(val config: KafkaConfig, // TODO: 配置信息
    */
   // TODO: 如果一个log dir变为offline，e.g. 磁盘坏了，这个时候对应的处理逻辑
   def handleLogDirFailure(dir: String, sendZkNotification: Boolean = true): Unit = {
-    // TODO: 说明此时此刻，该offline log dir还在live dir里面才可以执行下面的逻辑，否则，直接返回
+    // TODO: 说明此时此刻，该offline log dir还在live dir里面才可以执行下面的逻辑，否则，直接返回，
+    //  参考 logManager.handleLogDirFailure(dir)，该dir会在这个方法里面被移除live dir
     if (!logManager.isLogDirOnline(dir))
       return
     warn(s"Stopping serving replicas in dir $dir")

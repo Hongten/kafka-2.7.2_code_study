@@ -238,6 +238,7 @@ class LogManager(logDirs: Seq[File],
         cleaner.handleLogDirFailure(dir)
 
       def removeOfflineLogs(logs: Pool[TopicPartition, Log]): Iterable[TopicPartition] = {
+        // TODO: 找到对应的topicPartition
         val offlineTopicPartitions: Iterable[TopicPartition] = logs.collect {
           case (tp, log) if log.parentDir == dir => tp
         }
@@ -251,6 +252,7 @@ class LogManager(logDirs: Seq[File],
         offlineTopicPartitions
       }
 
+      // TODO: 从 currentLogs和futureLogs里面移除该dir目录所对应的log
       val offlineCurrentTopicPartitions = removeOfflineLogs(currentLogs)
       val offlineFutureTopicPartitions = removeOfflineLogs(futureLogs)
 

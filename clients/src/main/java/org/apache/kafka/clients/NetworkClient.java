@@ -205,18 +205,19 @@ public class NetworkClient implements KafkaClient {
              new DefaultHostResolver());
     }
 
+    // TODO: 12/5/23 网络客户端， broker于controller之间的网络通信
     public NetworkClient(Selectable selector,
                          MetadataUpdater metadataUpdater,
                          String clientId,
                          int maxInFlightRequestsPerConnection,
                          long reconnectBackoffMs,
                          long reconnectBackoffMax,
-                         int socketSendBuffer,
-                         int socketReceiveBuffer,
-                         int defaultRequestTimeoutMs,
-                         long connectionSetupTimeoutMs,
-                         long connectionSetupTimeoutMaxMs,
-                         ClientDnsLookup clientDnsLookup,
+                         int socketSendBuffer,               //todo -1
+                         int socketReceiveBuffer,            //todo -1
+                         int defaultRequestTimeoutMs,        //todo 40s
+                         long connectionSetupTimeoutMs,      //todo 10s
+                         long connectionSetupTimeoutMaxMs,   //todo 127s
+                         ClientDnsLookup clientDnsLookup,    //todo use_all_dns_ips
                          Time time,
                          boolean discoverBrokerVersions,
                          ApiVersions apiVersions,
