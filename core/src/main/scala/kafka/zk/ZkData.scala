@@ -95,6 +95,7 @@ object BrokerInfo {
    * any case).
    */
   def apply(broker: Broker, apiVersion: ApiVersion, jmxPort: Int): BrokerInfo = {
+    // TODO: 5
     val version = {
       if (apiVersion >= KAFKA_2_7_IV0)
         5
@@ -109,6 +110,7 @@ object BrokerInfo {
 }
 
 case class BrokerInfo(broker: Broker, version: Int, jmxPort: Int) {
+  // TODO: /brokers/ids/1001
   val path: String = BrokerIdZNode.path(broker.id)
   def toJsonBytes: Array[Byte] = BrokerIdZNode.encode(this)
 }
@@ -236,6 +238,7 @@ object BrokerIdZNode {
     *   "features": {"feature": {"min_version":1, "first_active_version":2, "max_version":3}}
     * }
     */
+  // TODO: broker在zk中的存储信息
   def decode(id: Int, jsonBytes: Array[Byte]): BrokerInfo = {
     Json.tryParseBytes(jsonBytes) match {
       case Right(js) =>

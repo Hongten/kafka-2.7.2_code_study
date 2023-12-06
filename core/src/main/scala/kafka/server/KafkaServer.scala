@@ -377,6 +377,7 @@ class KafkaServer(val config: KafkaConfig, time: Time = Time.SYSTEM, threadNameP
         // TODO: 启动 brokerToControllerChannelManager，该方法里面会创建BrokerToControllerRequestThread实例，然后启动该线程
         brokerToControllerChannelManager.start()
 
+        // TODO: 创建broker info 
         val brokerInfo = createBrokerInfo
         val brokerEpoch = zkClient.registerBroker(brokerInfo)
 
@@ -565,17 +566,21 @@ class KafkaServer(val config: KafkaConfig, time: Time = Time.SYSTEM, threadNameP
   }
 
   def createBrokerInfo: BrokerInfo = {
+    // TODO: SASL_PLAINTEXT://10.123.123.123:9092
     val endPoints = config.advertisedListeners.map(e => s"${e.host}:${e.port}")
+    // TODO: 从zk中获取已经注册的broker信息，然后检查是否和该broker有重复的记录，预期结果是没有重复记录。如果有，则抛出IllegalArgumentException
     zkClient.getAllBrokersInCluster.filter(_.id != config.brokerId).foreach { broker =>
       val commonEndPoints = broker.endPoints.map(e => s"${e.host}:${e.port}").intersect(endPoints)
       require(commonEndPoints.isEmpty, s"Configured end points ${commonEndPoints.mkString(",")} in" +
         s" advertised listeners are already registered by broker ${broker.id}")
     }
 
+    // TODO: 配置的是 port=9092
     val listeners = config.advertisedListeners.map { endpoint =>
       if (endpoint.port == 0)
         endpoint.copy(port = socketServer.boundPort(endpoint.listenerName))
       else
+      // TODO: SASL_PLAINTEXT://10.123.123.123:9092
         endpoint
     }
 
@@ -583,13 +588,16 @@ class KafkaServer(val config: KafkaConfig, time: Time = Time.SYSTEM, threadNameP
       if (endpoint.host == null || endpoint.host.trim.isEmpty)
         endpoint.copy(host = InetAddress.getLocalHost.getCanonicalHostName)
       else
+      // TODO: SASL_PLAINTEXT://10.123.123.123:9092
         endpoint
     )
 
+    // TODO: com.sun.management.jmxremote.port=9010 by default
     val jmxPort = System.getProperty("com.sun.management.jmxremote.port", "-1").toInt
     BrokerInfo(
+      // TODO: rack=null
       Broker(config.brokerId, updatedEndpoints, config.rack, brokerFeatures.supportedFeatures),
-      config.interBrokerProtocolVersion,
+      config.interBrokerProtocolVersion, // TODO: 2.7-IV2
       jmxPort)
   }
 

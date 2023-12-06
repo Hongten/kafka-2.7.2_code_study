@@ -405,14 +405,23 @@ class KafkaZkClient private[zk] (zooKeeperClient: ZooKeeperClient, isSecure: Boo
   }
 
   /**
+   * todo 获取所有的broker信息
    * Gets all brokers in the cluster.
    * @return sequence of brokers in the cluster.
    */
+  // TODO: 1. 在zk的路径/brokers/ids/下面获取所有到brokerId
+  //       2. 根据每个brokerId构建getDataRequest
+  //       3. 请求每个brokerId zk节点下面的broker信息
+  //       4. 返回所有broker信息
   def getAllBrokersInCluster: Seq[Broker] = {
+    // TODO: 从zk获取broker id list， 1001， 1002， 1003， 1004
     val brokerIds = getSortedBrokerList
+    // TODO: /brokers/ids/1001, /brokers/ids/1002, /brokers/ids/1003, /brokers/ids/1004
     val getDataRequests = brokerIds.map(brokerId => GetDataRequest(BrokerIdZNode.path(brokerId), ctx = Some(brokerId)))
+    // TODO: 请求zk获取broker的信息
     val getDataResponses = retryRequestsUntilConnected(getDataRequests)
     getDataResponses.flatMap { getDataResponse =>
+      // TODO: 1001， 1002， 1003， 1004
       val brokerId = getDataResponse.ctx.get.asInstanceOf[Int]
       getDataResponse.resultCode match {
         case Code.OK =>
@@ -458,6 +467,8 @@ class KafkaZkClient private[zk] (zooKeeperClient: ZooKeeperClient, isSecure: Boo
   }
 
   /**
+   * todo /brokers/ids
+   *      1001,1002,1003,1004....
    * Gets the list of sorted broker Ids
    */
   def getSortedBrokerList: Seq[Int] = getChildren(BrokerIdsZNode.path).map(_.toInt).sorted

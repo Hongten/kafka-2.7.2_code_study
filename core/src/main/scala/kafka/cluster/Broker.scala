@@ -50,12 +50,15 @@ object Broker {
  * @param rack        an optional rack
  * @param features    supported features
  */
+// TODO: broker对象 id=1001， endPoints=SASL_PLAINTEXT://10.123.123.123:9092， rack=null
 case class Broker(id: Int, endPoints: Seq[EndPoint], rack: Option[String], features: Features[SupportedVersionRange]) {
 
+  // TODO: <SASL_PLAINTEXT, SASL_PLAINTEXT://10.123.123.123:9092>
   private val endPointsMap = endPoints.map { endPoint =>
     endPoint.listenerName -> endPoint
   }.toMap
 
+  // TODO: 检查endPointsMap size，预期结果是 endPointsMap.size=endPoints.size
   if (endPointsMap.size != endPoints.size)
     throw new IllegalArgumentException(s"There is more than one end point with the same listener name: ${endPoints.mkString(",")}")
 
@@ -76,8 +79,10 @@ case class Broker(id: Int, endPoints: Seq[EndPoint], rack: Option[String], featu
         s"for broker $id")
     }
 
-  def getNode(listenerName: ListenerName): Option[Node] =
+  def getNode(listenerName: ListenerName): Option[Node] = {
+    // TODO: Node(1001, 10.123.123.123, 9092, null)
     endPointsMap.get(listenerName).map(endpoint => new Node(id, endpoint.host, endpoint.port, rack.orNull))
+  }
 
   def brokerEndPoint(listenerName: ListenerName): BrokerEndPoint = {
     val endpoint = endPoint(listenerName)
