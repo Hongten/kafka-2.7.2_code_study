@@ -379,6 +379,7 @@ class KafkaServer(val config: KafkaConfig, time: Time = Time.SYSTEM, threadNameP
 
         // TODO: 创建broker info 
         val brokerInfo = createBrokerInfo
+        // TODO: 15460
         val brokerEpoch = zkClient.registerBroker(brokerInfo)
 
         // Now that the broker is successfully registered, checkpoint its metadata

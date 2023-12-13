@@ -88,15 +88,20 @@ class KafkaZkClient private[zk] (zooKeeperClient: ZooKeeperClient, isSecure: Boo
   }
 
   /**
+   * todo 在zk中注册broker信息，并返回broker的epoch
+   *
     * Registers the broker in zookeeper and return the broker epoch.
     * @param brokerInfo payload of the broker znode
     * @return broker epoch (znode create transaction id)
     */
   def registerBroker(brokerInfo: BrokerInfo): Long = {
+    // TODO: /brokers/ids/1001
     val path = brokerInfo.path
     val stat = checkedEphemeralCreate(path, brokerInfo.toJsonBytes)
+    // TODO: Registered broker 1001 at path /brokers/ids/1001 with addresses: PLAINTEXT://mylocalip:9092, czxid (broker epoch): 15460
     info(s"Registered broker ${brokerInfo.broker.id} at path $path with addresses: " +
       s"${brokerInfo.broker.endPoints.map(_.connectionString).mkString(",")}, czxid (broker epoch): ${stat.getCzxid}")
+    // TODO: 15460
     stat.getCzxid
   }
 
@@ -1775,9 +1780,14 @@ class KafkaZkClient private[zk] (zooKeeperClient: ZooKeeperClient, isSecure: Boo
   }
 
   private def checkedEphemeralCreate(path: String, data: Array[Byte]): Stat = {
+    // TODO: 创建CheckedEphemeral 实例
     val checkedEphemeral = new CheckedEphemeral(path, data)
+    // TODO: Creating /brokers/ids/1001 (is it secure? false)
     info(s"Creating $path (is it secure? $isSecure)")
+    // TODO: 1.构建请求到zk
+    //       2.返回zk节点信息
     val stat = checkedEphemeral.create()
+    // TODO: NFO Stat of the created znode at /brokers/ids/1001 is: 15460,15460,1702435786776,1702435786776,1,0,0,72099546988413741,202,0,15460 (kafka.zk.KafkaZkClient) 
     info(s"Stat of the created znode at $path is: $stat")
     stat
   }
@@ -1801,15 +1811,17 @@ class KafkaZkClient private[zk] (zooKeeperClient: ZooKeeperClient, isSecure: Boo
   private class CheckedEphemeral(path: String, data: Array[Byte]) extends Logging {
     def create(): Stat = {
       val response = retryRequestUntilConnected(
+        // TODO: 构建请求
         MultiRequest(Seq(
+          // TODO:  path=/brokers/ids/1001
           CreateOp(path, null, defaultAcls(path), CreateMode.EPHEMERAL),
           SetDataOp(path, data, 0)))
       )
       val stat = response.resultCode match {
-        case Code.OK =>
+        case Code.OK => // TODO: 获取成功
           val setDataResult = response.zkOpResults(1).rawOpResult.asInstanceOf[SetDataResult]
           setDataResult.getStat
-        case Code.NODEEXISTS =>
+        case Code.NODEEXISTS => // TODO: 节点不存在
           getAfterNodeExists()
         case code =>
           error(s"Error while creating ephemeral at $path with return code: $code")
