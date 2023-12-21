@@ -24,6 +24,7 @@ import java.util.Properties
 import kafka.utils._
 import org.apache.kafka.common.utils.Utils
 
+// TODO: brokerId=1001, clusterId=BIbPq3azQnSIjx2QURxtBA
 case class BrokerMetadata(brokerId: Int,
                           clusterId: Option[String]) {
 
@@ -38,6 +39,13 @@ case class BrokerMetadata(brokerId: Int,
 class BrokerMetadataCheckpoint(val file: File) extends Logging {
   private val lock = new Object()
 
+  // cat meta.properties
+  //  #
+  //  #Sat Sep 23 13:04:14 SGT 2023
+  //  broker.id=1009
+  //  version=0
+  //  cluster.id=BIbPq3azQnSIjx2QURxtBA
+  //
   def write(brokerMetadata: BrokerMetadata) = {
     // TODO: 同步锁
     lock synchronized {

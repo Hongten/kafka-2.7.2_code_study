@@ -379,10 +379,18 @@ class KafkaServer(val config: KafkaConfig, time: Time = Time.SYSTEM, threadNameP
 
         // TODO: 创建broker info 
         val brokerInfo = createBrokerInfo
-        // TODO: 15460
+        // TODO: 15460, 在zk中注册broker信息，并返回broker的epoch
         val brokerEpoch = zkClient.registerBroker(brokerInfo)
 
+        // TODO: 创建BrokerMetadata(1001, BIbPq3azQnSIjx2QURxtBA)
         // Now that the broker is successfully registered, checkpoint its metadata
+        // TODO: 遍历broker的所有的live dir，往每个dir里面写入
+        // cat meta.properties
+        //  #
+        //  #Sat Sep 23 13:04:14 SGT 2023
+        //  broker.id=1001
+        //  version=0
+        //  cluster.id=BIbPq3azQnSIjx2QURxtBA
         checkpointBrokerMetadata(BrokerMetadata(config.brokerId, Some(clusterId)))
 
         /* start token manager */
@@ -930,7 +938,9 @@ class KafkaServer(val config: KafkaConfig, time: Time = Time.SYSTEM, threadNameP
    * @param brokerMetadata
    */
   private def checkpointBrokerMetadata(brokerMetadata: BrokerMetadata) = {
+    // TODO: 变量所有live的logDir
     for (logDir <- config.logDirs if logManager.isLogDirOnline(new File(logDir).getAbsolutePath)) {
+      // TODO: BrokerMetadataCheckpoint(new File("/mnt/ssd/0/kafka/meta.properties"))
       val checkpoint = brokerMetadataCheckpoints(logDir)
       checkpoint.write(brokerMetadata)
     }
