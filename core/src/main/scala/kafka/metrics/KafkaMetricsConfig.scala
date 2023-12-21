@@ -37,5 +37,5 @@ class KafkaMetricsConfig(props: VerifiableProperties) {
    * The metrics polling interval (in seconds).
    */
   val pollingIntervalSecs: Int = props.getInt(KafkaConfig.KafkaMetricsPollingIntervalSecondsProp,
-    Defaults.KafkaMetricsPollingIntervalSeconds)
+    Defaults.KafkaMetricsPollingIntervalSeconds) // TODO: 默认为10s 度量的轮询间隔，默认是10秒。
 }

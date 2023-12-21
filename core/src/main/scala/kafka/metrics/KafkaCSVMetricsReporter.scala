@@ -29,8 +29,11 @@ import java.util.concurrent.TimeUnit
 import kafka.utils.{Logging, VerifiableProperties}
 import org.apache.kafka.common.utils.Utils
 
+// TODO: 该trait是一个私有trait，就是简单地继承了KafkaMetricsReporterMBean。
 private trait KafkaCSVMetricsReporterMBean extends KafkaMetricsReporterMBean
 
+// TODO: class继承了KafkaMetricsMBean和KafkaCSVMetricsReporterMBean，
+//  因而实现了前两个trait的4个方法，分别是init, getMBeanName, startReporter和stopReporter
 private class KafkaCSVMetricsReporter extends KafkaMetricsReporter
                               with KafkaCSVMetricsReporterMBean
                               with Logging {

@@ -31,6 +31,7 @@ object ClientRequestQuotaManager {
   val QuotaRequestPercentDefault = Int.MaxValue.toDouble
   val NanosToPercentagePerSecond = 100.0 / TimeUnit.SECONDS.toNanos(1)
 
+  // TODO: exempt-Request
   private val ExemptSensorName = "exempt-" + QuotaType.Request
 }
 
@@ -41,7 +42,11 @@ class ClientRequestQuotaManager(private val config: ClientQuotaManagerConfig,
                                 private val quotaCallback: Option[ClientQuotaCallback])
     extends ClientQuotaManager(config, metrics, QuotaType.Request, time, threadNamePrefix, quotaCallback) {
 
+  // TODO: 默认为1s 
   private val maxThrottleTimeMs = TimeUnit.SECONDS.toMillis(this.config.quotaWindowSizeSeconds)
+  // todo # HELP kafka_server_Request_exempt_request_time Tracking exempt-request-time utilization percentage (kafka.server<type=Request><>exempt-request-time)
+  //  # TYPE kafka_server_Request_exempt_request_time untyped
+  //  kafka_server_Request_exempt_request_time 97.05575227101185
   private val exemptMetricName = metrics.metricName("exempt-request-time",
     QuotaType.Request.toString, "Tracking exempt-request-time utilization percentage")
 

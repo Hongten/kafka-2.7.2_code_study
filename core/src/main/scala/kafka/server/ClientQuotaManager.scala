@@ -439,7 +439,7 @@ class ClientQuotaManager(private val config: ClientQuotaManagerConfig,
   protected def getOrCreateSensor(sensorName: String, metricName: MetricName): Sensor = {
     sensorAccessor.getOrCreate(
       sensorName,
-      ClientQuotaManager.InactiveSensorExpirationTimeSeconds,
+      ClientQuotaManager.InactiveSensorExpirationTimeSeconds, // TODO: 1h
       sensor => sensor.add(metricName, new Rate)
     )
   }

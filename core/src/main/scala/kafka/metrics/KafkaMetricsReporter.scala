@@ -34,13 +34,18 @@ import scala.collection.mutable.ArrayBuffer
  * additionally implement an MBean trait that extends this trait so that the
  * registered MBean is compliant with the standard MBean convention.
  */
+// TODO: KafkaMetricsReporterMBean是基本trait 
 trait KafkaMetricsReporterMBean {
+  // TODO: 调用yammer的CsvReporter的start方法开启reporter
   def startReporter(pollingPeriodInSeconds: Long): Unit
+
+  // TODO: 调用yammer的CsvReporter的shutdown方法关闭reporter
   def stopReporter(): Unit
   /**
    *
    * @return The name with which the MBean will be registered.
    */
+  // TODO: 获取MBean的名称，格式为：kafka:type=kafka.metrics.KafkaCSVMetricsReporter
   def getMBeanName: String
 }
 
@@ -48,20 +53,26 @@ trait KafkaMetricsReporterMBean {
   * Implement {@link org.apache.kafka.common.ClusterResourceListener} to receive cluster metadata once it's available. Please see the class documentation for ClusterResourceListener for more information.
   */
 trait KafkaMetricsReporter {
+  // TODO: 在KafkaCSVMetricsReporter.scala中实现了该init方法
   def init(props: VerifiableProperties): Unit
 }
 
 object KafkaMetricsReporter {
+  // TODO: 标识该reporter是否已经启动，并在启动reporter的过程中充当锁的作用
   val ReporterStarted: AtomicBoolean = new AtomicBoolean(false)
   private var reporters: ArrayBuffer[KafkaMetricsReporter] = null
 
+  // TODO: startReporters就是启动MetricConfig中定义的所有reporter
   def startReporters (verifiableProps: VerifiableProperties): Seq[KafkaMetricsReporter] = {
     ReporterStarted synchronized {
       if (!ReporterStarted.get()) {
         reporters = ArrayBuffer[KafkaMetricsReporter]()
         val metricsConfig = new KafkaMetricsConfig(verifiableProps)
+        // TODO: kafka.metrics.reporters
         if(metricsConfig.reporters.nonEmpty) {
           metricsConfig.reporters.foreach(reporterType => {
+            // TODO: 具体方法是调用Utils.createObject方法通过反射机制创建所有reporter，并初始化每个reporter，
+            //  最后将reporter注册到MBean中
             val reporter = CoreUtils.createObject[KafkaMetricsReporter](reporterType)
             reporter.init(verifiableProps)
             reporters += reporter
