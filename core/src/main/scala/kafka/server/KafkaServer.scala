@@ -393,8 +393,10 @@ class KafkaServer(val config: KafkaConfig, time: Time = Time.SYSTEM, threadNameP
         //  cluster.id=BIbPq3azQnSIjx2QURxtBA
         checkpointBrokerMetadata(BrokerMetadata(config.brokerId, Some(clusterId)))
 
+        // TODO: 创建 DelegationTokenManager 实例
         /* start token manager */
         tokenManager = new DelegationTokenManager(config, tokenCache, time , zkClient)
+        // TODO: 由于我们没有配置，所以这里不会做什么事情 
         tokenManager.startup()
 
         /* start kafka controller */

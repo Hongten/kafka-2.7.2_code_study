@@ -161,6 +161,7 @@ class DelegationTokenManager(val config: KafkaConfig,
                              val tokenCache: DelegationTokenCache,
                              val time: Time,
                              val zkClient: KafkaZkClient) extends Logging with KafkaMetricsGroup {
+  // TODO: logIdent=[Token Manager on Broker 1001]:
   this.logIdent = s"[Token Manager on Broker ${config.brokerId}]: "
 
   import DelegationTokenManager._
@@ -170,20 +171,23 @@ class DelegationTokenManager(val config: KafkaConfig,
   type ExpireResponseCallback = (Errors, Long) => Unit
   type DescribeResponseCallback = (Errors, List[DelegationToken]) => Unit
 
+  // TODO: secretKey=null
   val secretKey = {
+    // TODO: keyBytes=null
     val keyBytes =  if (config.tokenAuthEnabled) config.delegationTokenMasterKey.value.getBytes(StandardCharsets.UTF_8) else null
     if (keyBytes == null || keyBytes.length == 0) null
     else
       createSecretKey(keyBytes)
   }
 
-  val tokenMaxLifetime: Long = config.delegationTokenMaxLifeMs
-  val defaultTokenRenewTime: Long = config.delegationTokenExpiryTimeMs
-  val tokenRemoverScanInterval: Long = config.delegationTokenExpiryCheckIntervalMs
+  val tokenMaxLifetime: Long = config.delegationTokenMaxLifeMs // TODO: default 7 days
+  val defaultTokenRenewTime: Long = config.delegationTokenExpiryTimeMs // TODO: default 1 day
+  val tokenRemoverScanInterval: Long = config.delegationTokenExpiryCheckIntervalMs // TODO: default 1h
   private val lock = new Object()
   private var tokenChangeListener: ZkNodeChangeNotificationListener = null
 
   def startup() = {
+    // TODO: false by default
     if (config.tokenAuthEnabled) {
       zkClient.createDelegationTokenPaths()
       loadCache()
