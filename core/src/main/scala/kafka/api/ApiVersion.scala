@@ -145,6 +145,7 @@ sealed trait ApiVersion extends Ordered[ApiVersion] {
   def recordVersion: RecordVersion
   def id: Int
 
+  // TODO: true
   def isAlterIsrSupported: Boolean = this >= KAFKA_2_7_IV2
 
   override def compare(that: ApiVersion): Int =

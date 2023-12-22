@@ -19,6 +19,7 @@ package kafka.controller
 
 import scala.collection.Seq
 
+// TODO: controller 状态
 sealed abstract class ControllerState {
 
   def value: Byte
@@ -114,6 +115,7 @@ object ControllerState {
     def value = 17
   }
 
+  // TODO: 总共18种状态
   val values: Seq[ControllerState] = Seq(Idle, ControllerChange, BrokerChange, TopicChange, TopicDeletion,
     AlterPartitionReassignment, AutoLeaderBalance, ManualLeaderBalance, ControlledShutdown, IsrChange,
     LeaderAndIsrResponseReceived, LogDirChange, ControllerShutdown, UncleanLeaderElectionEnable,

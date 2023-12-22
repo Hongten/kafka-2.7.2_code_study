@@ -79,13 +79,18 @@ class KafkaController(val config: KafkaConfig,
                       threadNamePrefix: Option[String] = None)
   extends ControllerEventProcessor with Logging with KafkaMetricsGroup {
 
+  // TODO: logIdent=[Controller id=1001]
   this.logIdent = s"[Controller id=${config.brokerId}] "
 
   @volatile private var brokerInfo = initialBrokerInfo
+  // TODO: 15460
   @volatile private var _brokerEpoch = initialBrokerEpoch
 
+  // TODO: true
   private val isAlterIsrEnabled = config.interBrokerProtocolVersion.isAlterIsrSupported
+  // TODO: 创建 StateChangeLogger 对象实例
   private val stateChangeLogger = new StateChangeLogger(config.brokerId, inControllerContext = true, None)
+  // TODO: 创建 ControllerContext 实例
   val controllerContext = new ControllerContext
   var controllerChannelManager = new ControllerChannelManager(controllerContext, config, time, metrics,
     stateChangeLogger, threadNamePrefix)
@@ -2553,10 +2558,18 @@ case class LeaderIsrAndControllerEpoch(leaderAndIsr: LeaderAndIsr, controllerEpo
   }
 }
 
+// TODO: 统计controller的信息
 private[controller] class ControllerStats extends KafkaMetricsGroup {
+  // TODO: 统计每秒发送的Unclean leader选举次数
+  // TODO: 通常情况下，执行unclean leader选举可能造成数据丢失，一般不建议开启，
+  //  可以这样理解：在发生unclean leader选择之前，该topic已经处于副本没有及时从leader侧同步到数据，
+  //  此时，如果所有的ISR里面的broker都挂掉了，那么通过 unclean.leader.election.enable=true/false进行判断是否需要脏选，如果是true，就会从AR里面
+  //  选择一个副本作为leader，那么此时就丢数据了（AR里面的副本正式因为没有同步到数据，才从ISR里面移除）
   val uncleanLeaderElectionRate = newMeter("UncleanLeaderElectionsPerSec", "elections", TimeUnit.SECONDS)
 
   val rateAndTimeMetrics: Map[ControllerState, KafkaTimer] = ControllerState.values.flatMap { state =>
+    // TODO: controller事件通用的统计速率指标的方法，有controller事件有很多种，对应的速率监控指标也有很多。
+    //  e.g. IsrChangeNotification事件是指标ISR列表发生变更的事件，如果这个事件经常出现，说明副本的ISR列表经常发生变化被认为非正常情况。
     state.rateAndTimeMetricName.map { metricName =>
       state -> new KafkaTimer(newTimer(metricName, TimeUnit.MILLISECONDS, TimeUnit.SECONDS))
     }

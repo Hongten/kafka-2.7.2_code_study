@@ -399,6 +399,7 @@ class KafkaServer(val config: KafkaConfig, time: Time = Time.SYSTEM, threadNameP
         // TODO: 由于我们没有配置，所以这里不会做什么事情 
         tokenManager.startup()
 
+        // TODO: 构建KafkaController对象实例
         /* start kafka controller */
         kafkaController = new KafkaController(config, zkClient, time, metrics, brokerInfo, brokerEpoch, tokenManager, brokerFeatures, featureCache, threadNamePrefix)
         kafkaController.startup()
