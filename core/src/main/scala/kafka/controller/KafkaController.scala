@@ -99,6 +99,7 @@ class KafkaController(val config: KafkaConfig,
   // visible for testing
   private[controller] val kafkaScheduler = new KafkaScheduler(1)
 
+  // TODO: 创建  ControllerEventManager 实例
   // visible for testing
   private[controller] val eventManager = new ControllerEventManager(config.brokerId, this, time,
     controllerContext.stats.rateAndTimeMetrics)
@@ -112,15 +113,25 @@ class KafkaController(val config: KafkaConfig,
   val topicDeletionManager = new TopicDeletionManager(config, controllerContext, replicaStateMachine,
     partitionStateMachine, new ControllerDeletionClient(this, zkClient))
 
+  // TODO: 创建 ControllerChangeHandler实例，监听 /controller 节点变更，包括创建，删除，数据更新 - ZNodeChangeHandler
   private val controllerChangeHandler = new ControllerChangeHandler(eventManager)
+  // TODO: 监听broker数量变化 - ZNodeChildChangeHandler
   private val brokerChangeHandler = new BrokerChangeHandler(eventManager)
+  // TODO: 监听broker数据变更，e.g. broker的配置信息发生的变化 - ZNodeChangeHandler
   private val brokerModificationsHandlers: mutable.Map[Int, BrokerModificationsHandler] = mutable.Map.empty
+  // TODO: 监控topic数量变化，路径 /brokers/topics - ZNodeChildChangeHandler
   private val topicChangeHandler = new TopicChangeHandler(eventManager)
+  // TODO: 监听topic删除节点 /admin/delete_topics的子节点数量变化 - ZNodeChildChangeHandler
   private val topicDeletionHandler = new TopicDeletionHandler(eventManager)
+  // TODO: 监听topic分区数据变更，e.g. 新增加了副本，分区更换了leader副本 - ZNodeChangeHandler
   private val partitionModificationsHandlers: mutable.Map[String, PartitionModificationsHandler] = mutable.Map.empty
+  // TODO: 监听分区副本分配任务，一旦发现新提交的任务，就为目标分区之心副本重分配 - ZNodeChangeHandler
   private val partitionReassignmentHandler = new PartitionReassignmentHandler(eventManager)
+  // TODO: 监听preferred leader选举任务，一旦发现新提交的任务，就为目标topic执行preferred leader选举 - ZNodeChangeHandler
   private val preferredReplicaElectionHandler = new PreferredReplicaElectionHandler(eventManager)
+  // TODO: 监听ISR副本集合变更，一旦被触发，就需要获取ISR发生变更的分区列表，然后更新Controller端对应的leader和ISR缓存元数据 - ZNodeChildChangeHandler
   private val isrChangeNotificationHandler = new IsrChangeNotificationHandler(eventManager)
+  // TODO: 监听日志路径变更，一旦被触发，需要获取受影响的broker列表，然后处理这些broker上失效的日志路径 - ZNodeChildChangeHandler
   private val logDirEventNotificationHandler = new LogDirEventNotificationHandler(eventManager)
 
   @volatile private var activeControllerId = -1
@@ -162,12 +173,16 @@ class KafkaController(val config: KafkaConfig,
    * elector
    */
   def startup() = {
+    // TODO: StateChangeHandler用于处理这块authFailed事件
     zkClient.registerStateChangeHandler(new StateChangeHandler {
+      // TODO: name=controller-state-change-handler
       override val name: String = StateChangeHandlers.ControllerHandler
       override def afterInitializingSession(): Unit = {
+        // TODO:  
         eventManager.put(RegisterBrokerAndReelect)
       }
       override def beforeInitializingSession(): Unit = {
+        // TODO:  把队列清空，然后放入Expire事件
         val queuedEvent = eventManager.clearAndPut(Expire)
 
         // Block initialization of the new session until the expiration event is being handled,
@@ -175,7 +190,9 @@ class KafkaController(val config: KafkaConfig,
         queuedEvent.awaitProcessing()
       }
     })
+    // TODO: Startup是一个ControllerEvent，ControllerEventThread会执行它的process方法
     eventManager.put(Startup)
+    // TODO: 启动ControllerEventManager
     eventManager.start()
   }
 
@@ -2471,6 +2488,7 @@ class BrokerModificationsHandler(eventManager: ControllerEventManager, brokerId:
 }
 
 class TopicChangeHandler(eventManager: ControllerEventManager) extends ZNodeChildChangeHandler {
+  // TODO: /brokers/topics
   override val path: String = TopicsZNode.path
 
   override def handleChildChange(): Unit = eventManager.put(TopicChange)
@@ -2530,8 +2548,10 @@ class PreferredReplicaElectionHandler(eventManager: ControllerEventManager) exte
 }
 
 class ControllerChangeHandler(eventManager: ControllerEventManager) extends ZNodeChangeHandler {
+  // TODO: path=/controller 
   override val path: String = ControllerZNode.path
 
+  // TODO: 处理创建，删除，修改 
   override def handleCreation(): Unit = eventManager.put(ControllerChange)
   override def handleDeletion(): Unit = eventManager.put(Reelect)
   override def handleDataChange(): Unit = eventManager.put(ControllerChange)

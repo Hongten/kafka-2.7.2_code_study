@@ -74,12 +74,16 @@ class ControllerEventManager(controllerId: Int,
                              eventQueueTimeTimeoutMs: Long = 300000) extends KafkaMetricsGroup {
   import ControllerEventManager._
 
+  // TODO: 默认的ControllerState为Idle
   @volatile private var _state: ControllerState = ControllerState.Idle
   private val putLock = new ReentrantLock()
+  // TODO: 初始化一个队列，存放QueuedEvent
   private val queue = new LinkedBlockingQueue[QueuedEvent]
+  // TODO: 创建 名为 controller-event-thread 的线程
   // Visible for test
   private[controller] var thread = new ControllerEventThread(ControllerEventThreadName)
 
+  // TODO: EventQueueTimeMs
   private val eventQueueTimeHist = newHistogram(EventQueueTimeMetricName)
 
   newGauge(EventQueueSizeMetricName, () => queue.size)
@@ -100,6 +104,7 @@ class ControllerEventManager(controllerId: Int,
   }
 
   def put(event: ControllerEvent): QueuedEvent = inLock(putLock) {
+    // TODO: 把ControllerEvent放入到queue 队列
     val queuedEvent = new QueuedEvent(event, time.milliseconds())
     queue.put(queuedEvent)
     queuedEvent
@@ -112,18 +117,20 @@ class ControllerEventManager(controllerId: Int,
     put(event)
   }
 
+  // TODO: 检查队列是否为空
   def isEmpty: Boolean = queue.isEmpty
 
   class ControllerEventThread(name: String) extends ShutdownableThread(name = name, isInterruptible = false) {
     logIdent = s"[ControllerEventThread controllerId=$controllerId] "
 
     override def doWork(): Unit = {
+      // TODO: 队列的头部第一个元素
       val dequeued = pollFromEventQueue()
       dequeued.event match {
         case ShutdownEventThread => // The shutting down of the thread has been initiated at this point. Ignore this event.
         case controllerEvent =>
           _state = controllerEvent.state
-
+          // TODO: 如果有新的元素从队列里面被取出，需要更新eventQueueTimeHist，当元素是最后一个，并且立马被取出，这里的值为0
           eventQueueTimeHist.update(time.milliseconds() - dequeued.enqueueTimeMs)
 
           try {
@@ -142,7 +149,9 @@ class ControllerEventManager(controllerId: Int,
     }
   }
 
+  // TODO: 从queue队列里面获取头部元素
   private def pollFromEventQueue(): QueuedEvent = {
+    // TODO: 每个元素从queue里面取出后，都会去更新eventQueueTimeHist， 当count>0,即queue里面还存在元素
     val count = eventQueueTimeHist.count()
     if (count != 0) {
       val event  = queue.poll(eventQueueTimeTimeoutMs, TimeUnit.MILLISECONDS)

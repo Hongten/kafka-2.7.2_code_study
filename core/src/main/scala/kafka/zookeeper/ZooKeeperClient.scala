@@ -80,6 +80,7 @@ class ZooKeeperClient(connectString: String,
   private val zNodeChangeHandlers = new ConcurrentHashMap[String, ZNodeChangeHandler]().asScala
   private val zNodeChildChangeHandlers = new ConcurrentHashMap[String, ZNodeChildChangeHandler]().asScala
   private val inFlightRequests = new Semaphore(maxInFlightRequests)
+  // TODO: 状态变更处理
   private val stateChangeHandlers = new ConcurrentHashMap[String, StateChangeHandler]().asScala
   private[zookeeper] val expiryScheduler = new KafkaScheduler(threads = 1, "zk-session-expiry-handler")
 
