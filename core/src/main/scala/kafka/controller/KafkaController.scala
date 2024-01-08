@@ -1510,10 +1510,13 @@ class KafkaController(val config: KafkaConfig,
   }
 
   private def maybeResign(): Unit = {
+    // TODO: 现在是controller
     val wasActiveBeforeChange = isActive
     zkClient.registerZNodeChangeHandlerAndCheckExistence(controllerChangeHandler)
+    // TODO: 获取controllerId时候，发现已经变化
     activeControllerId = zkClient.getControllerId.getOrElse(-1)
     if (wasActiveBeforeChange && !isActive) {
+      // TODO: controller 重置后，需要释放资源
       onControllerResignation()
     }
   }
