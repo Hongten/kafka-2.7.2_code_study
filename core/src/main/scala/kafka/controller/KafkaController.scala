@@ -1438,7 +1438,10 @@ class KafkaController(val config: KafkaConfig,
   }
 
   private def processStartup(): Unit = {
+    // todo controllerChangeHandler对应的zk 路径 /controller
+    // TODO: 把zNodeChangeHandler加入到zk zNodeChangeHandlers 中进行注册
     zkClient.registerZNodeChangeHandlerAndCheckExistence(controllerChangeHandler)
+    // TODO: 选举controller
     elect()
   }
 
@@ -1515,7 +1518,9 @@ class KafkaController(val config: KafkaConfig,
     }
   }
 
+  // TODO: 选举controller
   private def elect(): Unit = {
+    // TODO: 获取到活的controller id=1001 ，如果zk没有数据，则为-1
     activeControllerId = zkClient.getControllerId.getOrElse(-1)
     /*
      * We can get here during the initial startup and the handleDeleted ZK callback. Because of the potential race condition,
@@ -1523,11 +1528,16 @@ class KafkaController(val config: KafkaConfig,
      * createEphemeralPath method from getting into an infinite loop if this broker is already the controller.
      */
     if (activeControllerId != -1) {
+      // TODO: 如果 activeControllerId=1001， 意味着，1001的broker就是controller，就已经存在了controller，不需要进行选举
       debug(s"Broker $activeControllerId has been elected as the controller, so stopping the election process.")
       return
     }
 
+    // TODO: zk侧还没有controller的id，那么这个时候，需要进行controller选举
     try {
+      // TODO: controller选举动作：
+      //       1. 把当前的broker注册到/controller 节点下面
+      //       2. 把epoch+1 更新到 /controller_epoch 节点下面
       val (epoch, epochZkVersion) = zkClient.registerControllerAndIncrementControllerEpoch(config.brokerId)
       controllerContext.epoch = epoch
       controllerContext.epochZkVersion = epochZkVersion
@@ -1536,6 +1546,7 @@ class KafkaController(val config: KafkaConfig,
       info(s"${config.brokerId} successfully elected as the controller. Epoch incremented to ${controllerContext.epoch} " +
         s"and epoch zk version is now ${controllerContext.epochZkVersion}")
 
+      // TODO: controller选举失败后的操作
       onControllerFailover()
     } catch {
       case e: ControllerMovedException =>

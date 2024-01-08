@@ -111,16 +111,24 @@ class KafkaZkClient private[zk] (zooKeeperClient: ZooKeeperClient, isSecure: Boo
    * @return the (updated controller epoch, epoch zkVersion) tuple
    * @throws ControllerMovedException if fail to create /controller or fail to increment controller epoch.
    */
+  // TODO: controllerId=1001
+  // TODO: 1. 读取 zk 节点 /controller_epoch，获取epoch值，如果不存在，则进行初始化从0开始
+  //       2. 新的epoch会自动+1, 并且把当前broker作为controller初始化到 /controller 节点
+  //       3. 把新的controller epoch更新到 zk  /controller_epoch 节点
   def registerControllerAndIncrementControllerEpoch(controllerId: Int): (Int, Int) = {
     val timestamp = time.milliseconds()
 
     // Read /controller_epoch to get the current controller epoch and zkVersion,
     // create /controller_epoch with initial value if not exists
+    // TODO: 读取 zk 节点 /controller_epoch，获取epoch值，如果不存在，则进行初始化从0开始
+    // TODO: （3， 0）
     val (curEpoch, curEpochZkVersion) = getControllerEpoch
       .map(e => (e._1, e._2.getVersion))
       .getOrElse(maybeCreateControllerEpochZNode())
 
     // Create /controller and update /controller_epoch atomically
+    // TODO:  新的controller epoch
+    // todo (4, 0)
     val newControllerEpoch = curEpoch + 1
     val expectedControllerEpochZkVersion = curEpochZkVersion
 
@@ -147,13 +155,16 @@ class KafkaZkClient private[zk] (zooKeeperClient: ZooKeeperClient, isSecure: Boo
     def tryCreateControllerZNodeAndIncrementEpoch(): (Int, Int) = {
       val response = retryRequestUntilConnected(
         MultiRequest(Seq(
+          // TODO:  把当前的broker做为controller初始化 /controller zk节点
           CreateOp(ControllerZNode.path, ControllerZNode.encode(controllerId, timestamp), defaultAcls(ControllerZNode.path), CreateMode.EPHEMERAL),
+          // todo 把新的controller epoch更新到 zk  /controller_epoch 节点
           SetDataOp(ControllerEpochZNode.path, ControllerEpochZNode.encode(newControllerEpoch), expectedControllerEpochZkVersion)))
       )
       response.resultCode match {
         case Code.NODEEXISTS | Code.BADVERSION => checkControllerAndEpoch()
         case Code.OK =>
           val setDataResult = response.zkOpResults(1).rawOpResult.asInstanceOf[SetDataResult]
+          // TODO: (4, 0)
           (newControllerEpoch, setDataResult.getStat.getVersion)
         case code => throw KeeperException.create(code)
       }
@@ -163,9 +174,11 @@ class KafkaZkClient private[zk] (zooKeeperClient: ZooKeeperClient, isSecure: Boo
   }
 
   private def maybeCreateControllerEpochZNode(): (Int, Int) = {
+    // TODO: InitialControllerEpoch=0 
     createControllerEpochRaw(KafkaController.InitialControllerEpoch).resultCode match {
       case Code.OK =>
         info(s"Successfully created ${ControllerEpochZNode.path} with initial epoch ${KafkaController.InitialControllerEpoch}")
+        // TODO: (0, 0)
         (KafkaController.InitialControllerEpoch, KafkaController.InitialControllerEpochZkVersion)
       case Code.NODEEXISTS =>
         val (epoch, stat) = getControllerEpoch.getOrElse(throw new IllegalStateException(s"${ControllerEpochZNode.path} existed before but goes away while trying to read it"))
@@ -244,6 +257,7 @@ class KafkaZkClient private[zk] (zooKeeperClient: ZooKeeperClient, isSecure: Boo
    * @return CreateResponse
    */
   def createControllerEpochRaw(epoch: Int): CreateResponse = {
+    // TODO: 在/controller_epoch目录下面创建 epoch=0 进行初始化
     val createRequest = CreateRequest(ControllerEpochZNode.path, ControllerEpochZNode.encode(epoch),
       defaultAcls(ControllerEpochZNode.path), CreateMode.PERSISTENT)
     retryRequestUntilConnected(createRequest)
@@ -1060,9 +1074,12 @@ class KafkaZkClient private[zk] (zooKeeperClient: ZooKeeperClient, isSecure: Boo
    * @return optional integer that is Some if the controller znode exists and can be parsed and None otherwise.
    */
   def getControllerId: Option[Int] = {
+    // TODO: 构建 获取 /controller 路径下面的数据的请求
     val getDataRequest = GetDataRequest(ControllerZNode.path)
+    // TODO: 发送请求给zk，返回zk的响应
     val getDataResponse = retryRequestUntilConnected(getDataRequest)
     getDataResponse.resultCode match {
+      // todo 返回ok， 获取到了/controller 的数据, 这里是获取到brokerId=1001， 即controller的brokerid
       case Code.OK => ControllerZNode.decode(getDataResponse.data)
       case Code.NONODE => None
       case _ => throw getDataResponse.resultException.get
@@ -1083,10 +1100,13 @@ class KafkaZkClient private[zk] (zooKeeperClient: ZooKeeperClient, isSecure: Boo
    * @return optional (Int, Stat) that is Some if the controller epoch path exists and None otherwise.
    */
   def getControllerEpoch: Option[(Int, Stat)] = {
+    // TODO: 构建 读取 /controller_epoch 的请求
     val getDataRequest = GetDataRequest(ControllerEpochZNode.path)
+    // TODO: 发送请求，返回数据
     val getDataResponse = retryRequestUntilConnected(getDataRequest)
     getDataResponse.resultCode match {
       case Code.OK =>
+        // TODO: 如果请求成功，返回epoch=3(一个int类型的） 
         val epoch = ControllerEpochZNode.decode(getDataResponse.data)
         Option(epoch, getDataResponse.stat)
       case Code.NONODE => None
@@ -1402,6 +1422,7 @@ class KafkaZkClient private[zk] (zooKeeperClient: ZooKeeperClient, isSecure: Boo
    * @throws KeeperException if an error is returned by ZooKeeper
    */
   def registerZNodeChangeHandlerAndCheckExistence(zNodeChangeHandler: ZNodeChangeHandler): Boolean = {
+    // TODO: 把 zNodeChangeHandler 放入到 zNodeChangeHandlers map中
     zooKeeperClient.registerZNodeChangeHandler(zNodeChangeHandler)
     val existsResponse = retryRequestUntilConnected(ExistsRequest(zNodeChangeHandler.path))
     existsResponse.resultCode match {

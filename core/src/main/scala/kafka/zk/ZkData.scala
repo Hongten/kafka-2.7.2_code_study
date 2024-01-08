@@ -53,9 +53,13 @@ import scala.util.{Failure, Success, Try}
 
 object ControllerZNode {
   def path = "/controller"
+
+  // TODO: {"version":1, "brokerid":1001, "timestamp": 1234567}
   def encode(brokerId: Int, timestamp: Long): Array[Byte] = {
     Json.encodeAsBytes(Map("version" -> 1, "brokerid" -> brokerId, "timestamp" -> timestamp.toString).asJava)
   }
+
+  // TODO: 解析 brokerid = 1001
   def decode(bytes: Array[Byte]): Option[Int] = Json.parseBytes(bytes).map { js =>
     js.asJsonObject("brokerid").to[Int]
   }
