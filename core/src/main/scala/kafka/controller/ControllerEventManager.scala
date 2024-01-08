@@ -123,6 +123,7 @@ class ControllerEventManager(controllerId: Int,
   class ControllerEventThread(name: String) extends ShutdownableThread(name = name, isInterruptible = false) {
     logIdent = s"[ControllerEventThread controllerId=$controllerId] "
 
+    // TODO: 一直循环queue，从头部获取到对应的事件，进行对应的处理
     override def doWork(): Unit = {
       // TODO: 队列的头部第一个元素
       val dequeued = pollFromEventQueue()

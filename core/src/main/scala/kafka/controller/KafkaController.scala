@@ -178,7 +178,7 @@ class KafkaController(val config: KafkaConfig,
       // TODO: name=controller-state-change-handler
       override val name: String = StateChangeHandlers.ControllerHandler
       override def afterInitializingSession(): Unit = {
-        // TODO:  
+        // TODO:  当session创建后，放入RegisterBrokerAndReelect事件
         eventManager.put(RegisterBrokerAndReelect)
       }
       override def beforeInitializingSession(): Unit = {
@@ -191,8 +191,10 @@ class KafkaController(val config: KafkaConfig,
       }
     })
     // TODO: Startup是一个ControllerEvent，ControllerEventThread会执行它的process方法
+    // TODO: 到这里eventManager的queue里面存放的事件： 1.Expire， 2. RegisterBrokerAndReelect， 3. Startup
     eventManager.put(Startup)
-    // TODO: 启动ControllerEventManager
+    // TODO: 启动ControllerEventManager， 启动的时候，会把eventManager里面的name=controller-event-thread线程启动，
+    //  该线程会依次处理上面3个事件
     eventManager.start()
   }
 
@@ -469,6 +471,7 @@ class KafkaController(val config: KafkaConfig,
    * required to clean up internal controller data structures
    */
   private def onControllerResignation(): Unit = {
+    // TODO: 当controller收到Expire事件后，就会把zk对应的controller数据进行清理
     debug("Resigning")
     // de-register listeners
     zkClient.unregisterZNodeChildChangeHandler(isrChangeNotificationHandler.path)
@@ -2389,7 +2392,9 @@ class KafkaController(val config: KafkaConfig,
   }
 
   private def processExpire(): Unit = {
+    // TODO: 把 activeControllerId设置为-1
     activeControllerId = -1
+    // TODO: 回收资源，清理zk对应的数据
     onControllerResignation()
   }
 
