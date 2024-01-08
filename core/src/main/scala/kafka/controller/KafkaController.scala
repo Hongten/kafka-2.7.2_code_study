@@ -396,6 +396,7 @@ class KafkaController(val config: KafkaConfig,
    *    will switch the FeatureZNode status to disabled with empty features.
    */
   private def enableFeatureVersioning(): Unit = {
+    // TODO: {"features":{},"version":1,"status":1}
     val (mayBeFeatureZNodeBytes, version) = zkClient.getDataAndVersion(FeatureZNode.path)
     if (version == ZkVersion.UnknownVersion) {
       val newVersion = createFeatureZNode(new FeatureZNode(FeatureZNodeStatus.Enabled,

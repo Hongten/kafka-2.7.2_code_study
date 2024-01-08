@@ -828,6 +828,7 @@ case class FeatureZNode(status: FeatureZNodeStatus.FeatureZNodeStatus, features:
 }
 
 object FeatureZNode {
+  // TODO: {"features":{},"version":1,"status":1}
   private val VersionKey = "version"
   private val StatusKey = "status"
   private val FeaturesKey = "features"

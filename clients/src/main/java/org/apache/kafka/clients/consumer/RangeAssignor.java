@@ -72,10 +72,12 @@ public class RangeAssignor extends AbstractPartitionAssignor {
     }
 
     private Map<String, List<MemberInfo>> consumersPerTopic(Map<String, Subscription> consumerMetadata) {
+        // TODO: 1/8/24 topic和consumer信息 <topicName, List<MemberInfo>>
         Map<String, List<MemberInfo>> topicToConsumers = new HashMap<>();
         for (Map.Entry<String, Subscription> subscriptionEntry : consumerMetadata.entrySet()) {
             String consumerId = subscriptionEntry.getKey();
             MemberInfo memberInfo = new MemberInfo(consumerId, subscriptionEntry.getValue().groupInstanceId());
+            // TODO: 1/8/24 一个consumerId可能对应多个topic
             for (String topic : subscriptionEntry.getValue().topics()) {
                 put(topicToConsumers, topic, memberInfo);
             }
@@ -86,6 +88,7 @@ public class RangeAssignor extends AbstractPartitionAssignor {
     @Override
     public Map<String, List<TopicPartition>> assign(Map<String, Integer> partitionsPerTopic,
                                                     Map<String, Subscription> subscriptions) {
+        // TODO: 1/8/24 获取到<topicName, List<MemberInfo>>
         Map<String, List<MemberInfo>> consumersPerTopic = consumersPerTopic(subscriptions);
 
         Map<String, List<TopicPartition>> assignment = new HashMap<>();
@@ -100,8 +103,12 @@ public class RangeAssignor extends AbstractPartitionAssignor {
             if (numPartitionsForTopic == null)
                 continue;
 
+            // TODO: 1/8/24 字典排序
             Collections.sort(consumersForTopic);
 
+            // TODO: 1/8/24 n=分区数/消费者数量， m=分区数%消费者数，
+            //  那么前m个消费者每个分配n+1个分区，后面的(消费者数-m)个消费者每个分配n个分区
+            // TODO: 1/8/24 缺点：可能出现部分消费者过载的情况。
             int numPartitionsPerConsumer = numPartitionsForTopic / consumersForTopic.size();
             int consumersWithExtraPartition = numPartitionsForTopic % consumersForTopic.size();
 
