@@ -99,6 +99,9 @@ import java.util.TreeSet;
  */
 public class RoundRobinAssignor extends AbstractPartitionAssignor {
 
+    // TODO: 1/10/24 轮询方式的分配策略：将消费者组内订阅的所有topic的分区已经所有消费者进行排序后尽量均衡的分配
+    // todo 如果消费组内，消费者订阅的是同一个topic，那么分配结果尽量均衡，消费者之间分配到的分区数差值不会超过1
+    // todo 如果消费组内，消费者订阅的是不同topic，那么分配结果不保证 '尽量均衡'，因为某些消费者不参与一些topic的分配
     @Override
     public Map<String, List<TopicPartition>> assign(Map<String, Integer> partitionsPerTopic,
                                                     Map<String, Subscription> subscriptions) {
@@ -110,6 +113,7 @@ public class RoundRobinAssignor extends AbstractPartitionAssignor {
                                               memberSubscription.getValue().groupInstanceId()));
         }
 
+        // TODO: 1/10/24 排序 
         CircularIterator<MemberInfo> assigner = new CircularIterator<>(Utils.sorted(memberInfoList));
 
         for (TopicPartition partition : allPartitionsSorted(partitionsPerTopic, subscriptions)) {
@@ -123,6 +127,7 @@ public class RoundRobinAssignor extends AbstractPartitionAssignor {
 
     private List<TopicPartition> allPartitionsSorted(Map<String, Integer> partitionsPerTopic,
                                                      Map<String, Subscription> subscriptions) {
+        // TODO: 1/10/24 搜集所有被订阅的topic 
         SortedSet<String> topics = new TreeSet<>();
         for (Subscription subscription : subscriptions.values())
             topics.addAll(subscription.topics());
