@@ -175,6 +175,10 @@ import org.apache.kafka.common.utils.CollectionUtils;
  */
 public class StickyAssignor extends AbstractStickyAssignor {
 
+    // TODO: 1/10/24 目标：
+    //  1. 分区的分配尽量均衡
+    //  2. 每一次重分配的结果尽量于上一次分配结果保持一致
+    //  当这两个目标发送冲突时，优先保证第一个目标。第一个目标是每个分配算法都尽量尝试去完成的，第二个目标才真正体现StickyAssignor特性的
     // these schemas are used for preserving consumer's previously assigned partitions
     // list and sending it as user data to the leader during a rebalance
     static final String TOPIC_PARTITIONS_KEY_NAME = "previous_assignment";
