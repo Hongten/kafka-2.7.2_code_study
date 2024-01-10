@@ -405,6 +405,7 @@ class KafkaServer(val config: KafkaConfig, time: Time = Time.SYSTEM, threadNameP
         // TODO: KafkaController 启动
         kafkaController.startup()
 
+        // TODO: 创建 AdminManager 实例, 提供一些kafka内部使用的接口，e.g. 创建topic， 删除topic等操作
         adminManager = new AdminManager(config, metrics, metadataCache, zkClient)
 
         /* start group coordinator */

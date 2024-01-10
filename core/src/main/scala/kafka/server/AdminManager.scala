@@ -62,20 +62,26 @@ class AdminManager(val config: KafkaConfig,
                    val metadataCache: MetadataCache,
                    val zkClient: KafkaZkClient) extends Logging with KafkaMetricsGroup {
 
+  // TODO:  [Admin Manager on Broker 1001]
   this.logIdent = "[Admin Manager on Broker " + config.brokerId + "]: "
 
   private val topicPurgatory = DelayedOperationPurgatory[DelayedOperation]("topic", config.brokerId)
+  // TODO: 创建 adminZkClient 实例， AdminZkClient对象，提供zk相关的操作，e.g 创建topic，获取broker的信息，这个类都是kafka内部使用
   private val adminZkClient = new AdminZkClient(zkClient)
 
+  // TODO: 创建topic的策略 ，默认为null
   private val createTopicPolicy =
     Option(config.getConfiguredInstance(KafkaConfig.CreateTopicPolicyClassNameProp, classOf[CreateTopicPolicy]))
 
+  // TODO: 更改配置策略 ，默认为null
   private val alterConfigPolicy =
     Option(config.getConfiguredInstance(KafkaConfig.AlterConfigPolicyClassNameProp, classOf[AlterConfigPolicy]))
 
   def hasDelayedTopicOperations = topicPurgatory.numDelayed != 0
 
+  // TODO: 默认的partition数量 ，默认为1
   private val defaultNumPartitions = config.numPartitions.intValue()
+  // TODO: 默认的副本数，默认为1 
   private val defaultReplicationFactor = config.defaultReplicationFactor.shortValue()
 
   /**
@@ -137,6 +143,7 @@ class AdminManager(val config: KafkaConfig,
     * Create topics and wait until the topics have been completely created.
     * The callback function will be triggered either when timeout, error or the topics are created.
     */
+  // TODO: 创建topic 
   def createTopics(timeout: Int,
                    validateOnly: Boolean,
                    toCreate: Map[String, CreatableTopic],

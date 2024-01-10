@@ -38,6 +38,7 @@ import scala.collection.{Map, Seq}
  * This is an internal class and no compatibility guarantees are provided,
  * see org.apache.kafka.clients.admin.AdminClient for publicly supported APIs.
  */
+// TODO:  AdminZkClient对象，提供zk相关的操作，e.g 创建topic，获取broker的信息，这个类都是kafka内部使用
 class AdminZkClient(zkClient: KafkaZkClient) extends Logging {
 
   /**
