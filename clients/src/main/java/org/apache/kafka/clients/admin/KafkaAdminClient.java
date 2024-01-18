@@ -595,8 +595,8 @@ public class KafkaAdminClient extends AdminClient {
      * @param config The configuration
      */
     private int configureDefaultApiTimeoutMs(AdminClientConfig config) {
-        int requestTimeoutMs = config.getInt(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG);
-        int defaultApiTimeoutMs = config.getInt(AdminClientConfig.DEFAULT_API_TIMEOUT_MS_CONFIG);
+        int requestTimeoutMs = config.getInt(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG);//30s
+        int defaultApiTimeoutMs = config.getInt(AdminClientConfig.DEFAULT_API_TIMEOUT_MS_CONFIG);//60s
 
         if (defaultApiTimeoutMs < requestTimeoutMs) {
             if (config.originals().containsKey(AdminClientConfig.DEFAULT_API_TIMEOUT_MS_CONFIG)) {

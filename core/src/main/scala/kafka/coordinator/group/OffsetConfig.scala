@@ -49,14 +49,14 @@ case class OffsetConfig(maxMetadataSize: Int = OffsetConfig.DefaultMaxMetadataSi
                         offsetCommitRequiredAcks: Short = OffsetConfig.DefaultOffsetCommitRequiredAcks)
 
 object OffsetConfig {
-  val DefaultMaxMetadataSize = 4096
-  val DefaultLoadBufferSize = 5*1024*1024
-  val DefaultOffsetRetentionMs = 24*60*60*1000L
-  val DefaultOffsetsRetentionCheckIntervalMs = 600000L
-  val DefaultOffsetsTopicNumPartitions = 50
-  val DefaultOffsetsTopicSegmentBytes = 100*1024*1024
-  val DefaultOffsetsTopicReplicationFactor = 3.toShort
-  val DefaultOffsetsTopicCompressionCodec = NoCompressionCodec
-  val DefaultOffsetCommitTimeoutMs = 5000
-  val DefaultOffsetCommitRequiredAcks = (-1).toShort
+  val DefaultMaxMetadataSize = 4096 // 4k
+  val DefaultLoadBufferSize = 5*1024*1024 // 5MB
+  val DefaultOffsetRetentionMs = 24*60*60*1000L //24h 这个值一般会设置为72h
+  val DefaultOffsetsRetentionCheckIntervalMs = 600000L // 10mins
+  val DefaultOffsetsTopicNumPartitions = 50 // 50个partition
+  val DefaultOffsetsTopicSegmentBytes = 100*1024*1024 // 100MB, 一般情况下，我们会覆盖这个值，设置为1GB
+  val DefaultOffsetsTopicReplicationFactor = 3.toShort // 3个副本
+  val DefaultOffsetsTopicCompressionCodec = NoCompressionCodec // 压缩类型
+  val DefaultOffsetCommitTimeoutMs = 5000 // 5s
+  val DefaultOffsetCommitRequiredAcks = (-1).toShort // all(-1)
 }

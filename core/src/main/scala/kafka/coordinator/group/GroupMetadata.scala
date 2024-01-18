@@ -50,6 +50,7 @@ private[group] sealed trait GroupState {
  *             all members have left the group => Empty
  *             group is removed by partition emigration => Dead
  */
+// TODO: Group正在准备进行Rebalance
 private[group] case object PreparingRebalance extends GroupState {
   val validPreviousStates: Set[GroupState] = Set(Stable, CompletingRebalance, Empty)
 }
@@ -85,6 +86,7 @@ private[group] case object CompletingRebalance extends GroupState {
  *             follower join-group with new metadata => PreparingRebalance
  *             group is removed by partition emigration => Dead
  */
+// TODO: 稳定的状态
 private[group] case object Stable extends GroupState {
   val validPreviousStates: Set[GroupState] = Set(CompletingRebalance)
 }
@@ -100,6 +102,7 @@ private[group] case object Stable extends GroupState {
  *         allow offset fetch requests
  * transition: Dead is a final state before group metadata is cleaned up, so there are no transitions
  */
+// TODO: group内已经没有成员，并且他的meta已经被移除
 private[group] case object Dead extends GroupState {
   val validPreviousStates: Set[GroupState] = Set(Stable, PreparingRebalance, CompletingRebalance, Empty, Dead)
 }
@@ -119,6 +122,8 @@ private[group] case object Dead extends GroupState {
   *             group is removed by partition emigration => Dead
   *             group is removed by expiration => Dead
   */
+// TODO: Group里面没有任何成员，如果所有的offsets都过期的话就会变成Dead，一般当Group新创建时是这个这个状态，也有可能这个
+//  Group仅仅用于offset commits并没有任何成员
 private[group] case object Empty extends GroupState {
   val validPreviousStates: Set[GroupState] = Set(PreparingRebalance)
 }

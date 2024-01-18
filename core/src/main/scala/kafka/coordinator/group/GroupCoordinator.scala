@@ -1321,16 +1321,19 @@ object GroupCoordinator {
   val DeadGroup = GroupSummary(Dead.toString, NoProtocolType, NoProtocol, NoMembers)
   val NewMemberJoinTimeoutMs: Int = 5 * 60 * 1000
 
-  def apply(config: KafkaConfig,
-            zkClient: KafkaZkClient,
-            replicaManager: ReplicaManager,
-            time: Time,
+  def apply(config: KafkaConfig, // TODO: kafka配置信息
+            zkClient: KafkaZkClient, // TODO: zk客户端
+            replicaManager: ReplicaManager, // TODO: 副本管理者
+            time: Time, // TODO:
             metrics: Metrics): GroupCoordinator = {
+    // TODO: 创建一个 DelayedOperationPurgatory 实例 heartbeatPurgatory
     val heartbeatPurgatory = DelayedOperationPurgatory[DelayedHeartbeat]("Heartbeat", config.brokerId)
+    // TODO: 创建一个 DelayedOperationPurgatory 实例 joinPurgatory
     val joinPurgatory = DelayedOperationPurgatory[DelayedJoin]("Rebalance", config.brokerId)
     apply(config, zkClient, replicaManager, heartbeatPurgatory, joinPurgatory, time, metrics)
   }
 
+  // TODO: 创建一个OffsetConfig实例
   private[group] def offsetConfig(config: KafkaConfig) = OffsetConfig(
     maxMetadataSize = config.offsetMetadataMaxSize,
     loadBufferSize = config.offsetsLoadBufferSize,
@@ -1344,20 +1347,23 @@ object GroupCoordinator {
     offsetCommitRequiredAcks = config.offsetCommitRequiredAcks
   )
 
-  def apply(config: KafkaConfig,
-            zkClient: KafkaZkClient,
-            replicaManager: ReplicaManager,
-            heartbeatPurgatory: DelayedOperationPurgatory[DelayedHeartbeat],
-            joinPurgatory: DelayedOperationPurgatory[DelayedJoin],
+  def apply(config: KafkaConfig, // TODO: kafka配置信息
+            zkClient: KafkaZkClient, // TODO: zk客户端
+            replicaManager: ReplicaManager, // TODO: 副本管理者
+            heartbeatPurgatory: DelayedOperationPurgatory[DelayedHeartbeat], // TODO: heartbeatPurgatory
+            joinPurgatory: DelayedOperationPurgatory[DelayedJoin], // TODO: joinPurgatory
             time: Time,
             metrics: Metrics): GroupCoordinator = {
+    // TODO: 创建一个OffsetConfig实例
     val offsetConfig = this.offsetConfig(config)
-    val groupConfig = GroupConfig(groupMinSessionTimeoutMs = config.groupMinSessionTimeoutMs,
-      groupMaxSessionTimeoutMs = config.groupMaxSessionTimeoutMs,
-      groupMaxSize = config.groupMaxSize,
-      groupInitialRebalanceDelayMs = config.groupInitialRebalanceDelay)
+    // TODO: 创建 GroupConfig 对象实例
+    val groupConfig = GroupConfig(groupMinSessionTimeoutMs = config.groupMinSessionTimeoutMs, // todo 6s
+      groupMaxSessionTimeoutMs = config.groupMaxSessionTimeoutMs,  // todo 1800s
+      groupMaxSize = config.groupMaxSize, // TODO:  Int.MaxValue
+      groupInitialRebalanceDelayMs = config.groupInitialRebalanceDelay) // todo 3s
 
-    val groupMetadataManager = new GroupMetadataManager(config.brokerId, config.interBrokerProtocolVersion,
+    // TODO: 创建GroupMetaManager实例
+    val groupMetadataManager = new GroupMetadataManager(config.brokerId, config.interBrokerProtocolVersion, // TODO: 2.7-IV2
       offsetConfig, replicaManager, zkClient, time, metrics)
     new GroupCoordinator(config.brokerId, groupConfig, offsetConfig, groupMetadataManager, heartbeatPurgatory, joinPurgatory, time, metrics)
   }

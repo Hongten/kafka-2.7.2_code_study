@@ -408,6 +408,7 @@ class KafkaServer(val config: KafkaConfig, time: Time = Time.SYSTEM, threadNameP
         // TODO: 创建 AdminManager 实例, 提供一些kafka内部使用的接口，e.g. 创建topic， 删除topic等操作
         adminManager = new AdminManager(config, metrics, metadataCache, zkClient)
 
+        // TODO: 创建GroupCoordinator实例
         /* start group coordinator */
         // Hardcode Time.SYSTEM for now as some Streams tests fail otherwise, it would be good to fix the underlying issue
         groupCoordinator = GroupCoordinator(config, zkClient, replicaManager, Time.SYSTEM, metrics)

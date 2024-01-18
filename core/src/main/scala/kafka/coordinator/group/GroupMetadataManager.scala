@@ -62,8 +62,11 @@ class GroupMetadataManager(brokerId: Int,
                            time: Time,
                            metrics: Metrics) extends Logging with KafkaMetricsGroup {
 
+  // TODO: 压缩类型为 NoCompressionCodec ，即没有使用压缩默认
   private val compressionType: CompressionType = CompressionType.forId(config.offsetsTopicCompressionCodec.codec)
 
+  // TODO: 主要就是维护这个cache
+  // todo <groupId, GroupMetadata>
   private val groupMetadataCache = new Pool[String, GroupMetadata]
 
   /* lock protecting access to loading and owned partition sets */
