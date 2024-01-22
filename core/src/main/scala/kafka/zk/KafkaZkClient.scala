@@ -629,11 +629,13 @@ class KafkaZkClient private[zk] (zooKeeperClient: ZooKeeperClient, isSecure: Boo
     * @return the full replica assignment for each partition from the given topics.
     */
   def getFullReplicaAssignmentForTopics(topics: Set[String]): Map[TopicPartition, ReplicaAssignment] = {
+    // TODO: 构造访问zk的request /brokers/topics/<topic_name>
     val getDataRequests = topics.map(topic => GetDataRequest(TopicZNode.path(topic), ctx = Some(topic)))
     val getDataResponses = retryRequestsUntilConnected(getDataRequests.toSeq)
     getDataResponses.flatMap { getDataResponse =>
       val topic = getDataResponse.ctx.get.asInstanceOf[String]
       getDataResponse.resultCode match {
+        // TODO: 获取到topic的的副本数
         case Code.OK => TopicZNode.decode(topic, getDataResponse.data)
         case Code.NONODE => Map.empty[TopicPartition, ReplicaAssignment]
         case _ => throw getDataResponse.resultException.get
@@ -683,6 +685,7 @@ class KafkaZkClient private[zk] (zooKeeperClient: ZooKeeperClient, isSecure: Boo
   def getTopicPartitionCount(topic: String): Option[Int] = {
     val topicData = getReplicaAssignmentForTopics(Set(topic))
     if (topicData.nonEmpty)
+    // TODO: 返回topic的partition size 
       Some(topicData.size)
     else
       None

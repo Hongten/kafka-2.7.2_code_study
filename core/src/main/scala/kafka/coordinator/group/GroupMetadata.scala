@@ -218,6 +218,7 @@ private[group] class GroupMetadata(val groupId: String, initialState: GroupState
   private val pendingMembers = new mutable.HashSet[String]
   private var numMembersAwaitingJoin = 0
   private val supportedProtocols = new mutable.HashMap[String, Integer]().withDefaultValue(0)
+  // TODO: 缓存信息 <TopicPartition, CommitRecordMetadataAndOffset> CommitRecordMetadataAndOffset 提交的offset信息
   private val offsets = new mutable.HashMap[TopicPartition, CommitRecordMetadataAndOffset]
   private val pendingOffsetCommits = new mutable.HashMap[TopicPartition, OffsetAndMetadata]
   private val pendingTransactionalOffsetCommits = new mutable.HashMap[Long, mutable.Map[TopicPartition, CommitRecordMetadataAndOffset]]()
@@ -712,8 +713,10 @@ private[group] class GroupMetadata(val groupId: String, initialState: GroupState
     }.toMap
   }
 
+  // TODO: 将过期的记录从 offsets 中去除
   def removeExpiredOffsets(currentTimestamp: Long, offsetRetentionMs: Long): Map[TopicPartition, OffsetAndMetadata] = {
 
+    // TODO: 获取到获到过期的offset信息
     def getExpiredOffsets(baseTimestamp: CommitRecordMetadataAndOffset => Long,
                           subscribedTopics: Set[String] = Set.empty): Map[TopicPartition, OffsetAndMetadata] = {
       offsets.filter {
@@ -770,6 +773,7 @@ private[group] class GroupMetadata(val groupId: String, initialState: GroupState
       debug(s"Expired offsets from group '$groupId': ${expiredOffsets.keySet}")
 
     offsets --= expiredOffsets.keySet
+    // TODO: 将有效的记录返回 Map[TopicPartition, OffsetAndMetadata]
     expiredOffsets
   }
 

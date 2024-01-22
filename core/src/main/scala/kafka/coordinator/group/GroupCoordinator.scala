@@ -50,10 +50,10 @@ import scala.math.max
  * used by its callback.  The delayed callback may acquire the group lock
  * since the delayed operation is completed only if the group lock can be acquired.
  */
-class GroupCoordinator(val brokerId: Int,
-                       val groupConfig: GroupConfig,
-                       val offsetConfig: OffsetConfig,
-                       val groupManager: GroupMetadataManager,
+class GroupCoordinator(val brokerId: Int, // TODO: 1001
+                       val groupConfig: GroupConfig, // TODO: group config
+                       val offsetConfig: OffsetConfig, // TODO: offset config
+                       val groupManager: GroupMetadataManager, // TODO: group manager
                        val heartbeatPurgatory: DelayedOperationPurgatory[DelayedHeartbeat],
                        val joinPurgatory: DelayedOperationPurgatory[DelayedJoin],
                        time: Time,
@@ -63,6 +63,7 @@ class GroupCoordinator(val brokerId: Int,
   type JoinCallback = JoinGroupResult => Unit
   type SyncCallback = SyncGroupResult => Unit
 
+  // TODO: offset 删除 metric
   /* setup metrics */
   val offsetDeletionSensor = metrics.sensor("OffsetDeletions")
 
@@ -86,13 +87,14 @@ class GroupCoordinator(val brokerId: Int,
 
   this.logIdent = "[GroupCoordinator " + brokerId + "]: "
 
+  // TODO: 标记GroupCoordinator是否存活 ，默认为false
   private val isActive = new AtomicBoolean(false)
 
   def offsetsTopicConfigs: Properties = {
     val props = new Properties
-    props.put(LogConfig.CleanupPolicyProp, LogConfig.Compact)
-    props.put(LogConfig.SegmentBytesProp, offsetConfig.offsetsTopicSegmentBytes.toString)
-    props.put(LogConfig.CompressionTypeProp, ProducerCompressionCodec.name)
+    props.put(LogConfig.CleanupPolicyProp, LogConfig.Compact) // TODO: 压缩类型
+    props.put(LogConfig.SegmentBytesProp, offsetConfig.offsetsTopicSegmentBytes.toString) // TODO: 1G
+    props.put(LogConfig.CompressionTypeProp, ProducerCompressionCodec.name) // TODO: producer， 意味着会根据producer的压缩类型进行设置
     props
   }
 
@@ -106,7 +108,9 @@ class GroupCoordinator(val brokerId: Int,
    */
   def startup(enableMetadataExpiration: Boolean = true): Unit = {
     info("Starting up.")
+    // TODO: enableMetadataExpiration=true, by default
     groupManager.startup(enableMetadataExpiration)
+    // TODO: 标记groupCoordinator 为active
     isActive.set(true)
     info("Startup complete.")
   }

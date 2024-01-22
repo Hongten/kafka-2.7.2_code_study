@@ -24,10 +24,14 @@ import java.util.Set;
 
 public class Topic {
 
+    // TODO: 1/19/24 是kafka内部的topic，用于存储消费者 消费信息的topic， 存储的消息由两部分组成
+    // todo 一部分offset信息[groupId, topic, partition]::[OffsetMetadata[offset,metadata], CommitTime ExpirationTime]
+    // todo 另一部分是group信息 groupId::[groupId,Some(consumer), groupState, Map(memberId->[memberId, clientid, clientHost, sessionTimeoutMs...]
     public static final String GROUP_METADATA_TOPIC_NAME = "__consumer_offsets";
     public static final String TRANSACTION_STATE_TOPIC_NAME = "__transaction_state";
     public static final String LEGAL_CHARS = "[a-zA-Z0-9._-]";
 
+    // TODO: 1/19/24 全部kafka内部的topic列表
     private static final Set<String> INTERNAL_TOPICS = Collections.unmodifiableSet(
             Utils.mkSet(GROUP_METADATA_TOPIC_NAME, TRANSACTION_STATE_TOPIC_NAME));
 

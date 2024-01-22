@@ -65,25 +65,29 @@ class GroupMetadataManager(brokerId: Int,
   // TODO: 压缩类型为 NoCompressionCodec ，即没有使用压缩默认
   private val compressionType: CompressionType = CompressionType.forId(config.offsetsTopicCompressionCodec.codec)
 
-  // TODO: 主要就是维护这个cache
+  // TODO: 主要就是维护这个cache，存储group与GroupMetadata的cache
   // todo <groupId, GroupMetadata>
   private val groupMetadataCache = new Pool[String, GroupMetadata]
 
   /* lock protecting access to loading and owned partition sets */
   private val partitionLock = new ReentrantLock()
 
+  // TODO: __consumer_offsets中正在被当前coordinator加载的分区
   /* partitions of consumer groups that are being loaded, its lock should be always called BEFORE the group lock if needed */
   private val loadingPartitions: mutable.Set[Int] = mutable.Set()
 
+  // TODO:  __consumer_offsets中分配到当前coordinator的分区， 该broker是这些分区的leader
   /* partitions of consumer groups that are assigned, using the same loading partition lock */
   private val ownedPartitions: mutable.Set[Int] = mutable.Set()
 
   /* shutting down flag */
   private val shuttingDown = new AtomicBoolean(false)
 
+  // TODO: 从zk中或去topic __consumer_offsets的分区数，如果没有获取到，则会使用默认50的分区数
   /* number of partitions for the consumer metadata topic */
   private val groupMetadataTopicPartitionCount = getGroupMetadataTopicPartitionCount
 
+  // TODO: 创建一个 KafkaScheduler 线程池，名字为 group-metadata-manager-1， 清除过期offset以及group元数据的定时任务，默认10mins
   /* single-thread scheduler to handle offset/group metadata cache loading and unloading */
   private val scheduler = new KafkaScheduler(threads = 1, threadNamePrefix = "group-metadata-manager-")
 
@@ -175,11 +179,13 @@ class GroupMetadataManager(brokerId: Int,
     })
 
   def startup(enableMetadataExpiration: Boolean): Unit = {
+    // TODO:  启动 scheduler 线程，线程数为1
     scheduler.startup()
     if (enableMetadataExpiration) {
+      // TODO: 往scheduler线程里面添加task 
       scheduler.schedule(name = "delete-expired-group-metadata",
         fun = () => cleanupGroupMetadata(),
-        period = config.offsetsRetentionCheckIntervalMs,
+        period = config.offsetsRetentionCheckIntervalMs, // TODO: 10 mins 
         unit = TimeUnit.MILLISECONDS)
     }
   }
@@ -235,6 +241,7 @@ class GroupMetadataManager(brokerId: Int,
    * Add a group or get the group associated with the given groupId if it already exists
    */
   def addGroup(group: GroupMetadata): GroupMetadata = {
+    // TODO: 把group放入到groupMetadataCache中，如果cache中已经存在groupid，则返回现有的groupMetadata, 否则返回当前的groupMetadata信息
     val currentGroup = groupMetadataCache.putIfNotExists(group.groupId, group)
     if (currentGroup != null) {
       currentGroup
@@ -785,10 +792,13 @@ class GroupMetadataManager(brokerId: Int,
 
   // visible for testing
   private[group] def cleanupGroupMetadata(): Unit = {
+    // TODO: 获取当前时间 
     val currentTimestamp = time.milliseconds()
+    // TODO:  
     val numOffsetsRemoved = cleanupGroupMetadata(groupMetadataCache.values, group => {
-      group.removeExpiredOffsets(currentTimestamp, config.offsetsRetentionMs)
+      group.removeExpiredOffsets(currentTimestamp, config.offsetsRetentionMs) // TODO: 5MB 
     })
+    // TODO: 记录有多少
     offsetExpiredSensor.record(numOffsetsRemoved)
     if (numOffsetsRemoved > 0)
       info(s"Removed $numOffsetsRemoved expired offsets in ${time.milliseconds() - currentTimestamp} milliseconds.")
@@ -943,6 +953,7 @@ class GroupMetadataManager(brokerId: Int,
    * If the topic does not exist, the configured partition count is returned.
    */
   private def getGroupMetadataTopicPartitionCount: Int = {
+    // TODO:  从zk中获取到topic __consumer_offsets 的分区数，如果没有获取到，则使用config.offsetsTopicNumPartitions 默认为50个分区
     zkClient.getTopicPartitionCount(Topic.GROUP_METADATA_TOPIC_NAME).getOrElse(config.offsetsTopicNumPartitions)
   }
 
