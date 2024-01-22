@@ -40,18 +40,22 @@ object TransactionCoordinator {
             metadataCache: MetadataCache,
             time: Time): TransactionCoordinator = {
 
-    val txnConfig = TransactionConfig(config.transactionalIdExpirationMs,
-      config.transactionMaxTimeoutMs,
-      config.transactionTopicPartitions,
-      config.transactionTopicReplicationFactor,
-      config.transactionTopicSegmentBytes,
-      config.transactionsLoadBufferSize,
-      config.transactionTopicMinISR,
-      config.transactionAbortTimedOutTransactionCleanupIntervalMs,
-      config.transactionRemoveExpiredTransactionalIdCleanupIntervalMs,
+    // TODO: 事务配置
+    val txnConfig = TransactionConfig(config.transactionalIdExpirationMs, // TODO: 7-days
+      config.transactionMaxTimeoutMs, // TODO: 15mins
+      config.transactionTopicPartitions, // TODO: 50
+      config.transactionTopicReplicationFactor, // TODO: 3
+      config.transactionTopicSegmentBytes, // TODO: 默认为100MB，设置为1GB
+      config.transactionsLoadBufferSize, // TODO: 5MB
+      config.transactionTopicMinISR, // TODO: 2
+      config.transactionAbortTimedOutTransactionCleanupIntervalMs, // TODO: 10s
+      config.transactionRemoveExpiredTransactionalIdCleanupIntervalMs, // TODO: 1h
       config.requestTimeoutMs)
 
+    // TODO: 创建 ProducerIdManager 实例
+    // todo 本身缓存了一个 nextProducerId，并且把当前的 currentProducerBlock存放到zk /latest_producer_id_block路径下面
     val producerIdManager = new ProducerIdManager(config.brokerId, zkClient)
+    // TODO: 事务状态管理者实例
     val txnStateManager = new TransactionStateManager(config.brokerId, zkClient, scheduler, replicaManager, txnConfig,
       time, metrics)
 

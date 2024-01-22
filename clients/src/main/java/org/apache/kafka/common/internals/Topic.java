@@ -28,6 +28,7 @@ public class Topic {
     // todo 一部分offset信息[groupId, topic, partition]::[OffsetMetadata[offset,metadata], CommitTime ExpirationTime]
     // todo 另一部分是group信息 groupId::[groupId,Some(consumer), groupState, Map(memberId->[memberId, clientid, clientHost, sessionTimeoutMs...]
     public static final String GROUP_METADATA_TOPIC_NAME = "__consumer_offsets";
+    // TODO: 1/22/24 事务状态信息，内部topic
     public static final String TRANSACTION_STATE_TOPIC_NAME = "__transaction_state";
     public static final String LEGAL_CHARS = "[a-zA-Z0-9._-]";
 

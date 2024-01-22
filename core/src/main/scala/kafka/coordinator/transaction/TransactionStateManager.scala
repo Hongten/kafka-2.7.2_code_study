@@ -79,13 +79,16 @@ class TransactionStateManager(brokerId: Int,
                               time: Time,
                               metrics: Metrics) extends Logging {
 
+  // TODO:  [Transaction State Manager 1001]:
   this.logIdent = "[Transaction State Manager " + brokerId + "]: "
 
   type SendTxnMarkersCallback = (Int, TransactionResult, TransactionMetadata, TxnTransitMetadata) => Unit
 
+  // TODO: 关闭标志
   /** shutting down flag */
   private val shuttingDown = new AtomicBoolean(false)
 
+  // TODO: 状态锁
   /** lock protecting access to the transactional metadata cache, including loading and leaving partition sets */
   private val stateLock = new ReentrantReadWriteLock()
 
@@ -95,12 +98,15 @@ class TransactionStateManager(brokerId: Int,
   /** transaction metadata cache indexed by assigned transaction topic partition ids */
   private[transaction] val transactionMetadataCache: mutable.Map[Int, TxnMetadataCacheEntry] = mutable.Map()
 
+  // TODO: 默认为50
   /** number of partitions for the transaction log topic */
   private val transactionTopicPartitionCount = getTransactionTopicPartitionCount
 
+  // TODO: TransactionsPartitionLoadTime metric
   /** setup metrics*/
   private val partitionLoadSensor = metrics.sensor(TransactionStateManager.LoadTimeSensor)
 
+  // TODO: 添加metrics
   partitionLoadSensor.add(metrics.metricName("partition-load-time-max",
     TransactionStateManager.MetricsGroup,
     "The max time it took to load the partitions in the last 30sec"), new Max())
@@ -364,6 +370,7 @@ class TransactionStateManager(brokerId: Int,
    * If the topic does not exist, the default partition count is returned.
    */
   private def getTransactionTopicPartitionCount: Int = {
+    // TODO: 默认为50个partition
     zkClient.getTopicPartitionCount(Topic.TRANSACTION_STATE_TOPIC_NAME).getOrElse(config.transactionLogNumPartitions)
   }
 
@@ -478,6 +485,7 @@ class TransactionStateManager(brokerId: Int,
       val loadedTransactions = loadTransactionMetadata(topicPartition, coordinatorEpoch)
       val endTimeMs = time.milliseconds()
       val totalLoadingTimeMs = endTimeMs - startTimeMs
+      // TODO: 记录指标值
       partitionLoadSensor.record(totalLoadingTimeMs.toDouble, endTimeMs, false)
       info(s"Finished loading ${loadedTransactions.size} transaction metadata from $topicPartition in " +
         s"$totalLoadingTimeMs milliseconds, of which $schedulerTimeMs milliseconds was spent in the scheduler.")

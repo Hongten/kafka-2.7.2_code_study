@@ -36,6 +36,7 @@ object ProducerIdManager extends Logging {
   val PidBlockSize: Long = 1000L
 
   def generateProducerIdBlockJson(producerIdBlock: ProducerIdBlock): Array[Byte] = {
+    // TODO: {"version": 1, "broker": 1001, "block_start": 0, "block_end": 999}
     Json.encodeAsBytes(Map("version" -> CurrentVersion,
       "broker" -> producerIdBlock.brokerId,
       "block_start" -> producerIdBlock.blockStartId.toString,
@@ -72,9 +73,11 @@ case class ProducerIdBlock(brokerId: Int, blockStartId: Long, blockEndId: Long) 
 
 class ProducerIdManager(val brokerId: Int, val zkClient: KafkaZkClient) extends Logging {
 
+  // TODO:  [ProducerId Manager 1001]:
   this.logIdent = "[ProducerId Manager " + brokerId + "]: "
 
   private var currentProducerIdBlock: ProducerIdBlock = null
+  // TODO: 下一个producerId的值
   private var nextProducerId: Long = -1L
 
   // grab the first block of producerIds
@@ -87,6 +90,7 @@ class ProducerIdManager(val brokerId: Int, val zkClient: KafkaZkClient) extends 
     var zkWriteComplete = false
     while (!zkWriteComplete) {
       // refresh current producerId block from zookeeper again
+      // TODO: /latest_producer_id_block
       val (dataOpt, zkVersion) = zkClient.getDataAndVersion(ProducerIdBlockZNode.path)
 
       // generate the new producerId block
@@ -101,15 +105,21 @@ class ProducerIdManager(val brokerId: Int, val zkClient: KafkaZkClient) extends 
             throw new KafkaException("Have exhausted all producerIds.")
           }
 
+          // TODO: 有数据后：
+          // TODO:  ProducerIdBlock(1001, 1000L, 1999L)
           ProducerIdBlock(brokerId, currProducerIdBlock.blockEndId + 1L, currProducerIdBlock.blockEndId + ProducerIdManager.PidBlockSize)
         case None =>
           debug(s"There is no producerId block yet (Zk path version $zkVersion), creating the first block")
+          // TODO: 第一次：
+          // TODO: ProducerIdBlock(1001, 0L, 999L)
           ProducerIdBlock(brokerId, 0L, ProducerIdManager.PidBlockSize - 1)
       }
 
       val newProducerIdBlockData = ProducerIdManager.generateProducerIdBlockJson(currentProducerIdBlock)
 
       // try to write the new producerId block into zookeeper
+      // TODO: /latest_producer_id_block ,
+      // TODO: {"version": 1, "broker": 1001, "block_start": 0, "block_end": 999}
       val (succeeded, version) = zkClient.conditionalUpdatePath(ProducerIdBlockZNode.path,
         newProducerIdBlockData, zkVersion, Some(checkProducerIdBlockZkData))
       zkWriteComplete = succeeded
@@ -136,16 +146,20 @@ class ProducerIdManager(val brokerId: Int, val zkClient: KafkaZkClient) extends 
     }
   }
 
+  // TODO: 生成producerId
   def generateProducerId(): Long = {
+    // TODO: 同步锁
     this synchronized {
       // grab a new block of producerIds if this block has been exhausted
+      // TODO: producerId是按照块进行区分的，意味着当下一个producerId 大于当前块的最后一个id，则需要进行重新生成块，新块的blockStartId+1
+      //  否则producerId+1
       if (nextProducerId > currentProducerIdBlock.blockEndId) {
         getNewProducerIdBlock()
         nextProducerId = currentProducerIdBlock.blockStartId + 1
       } else {
         nextProducerId += 1
       }
-
+      // TODO: 因为前面已经+1 ，所以这里需要-1，为什么不直接在上面返回呢？
       nextProducerId - 1
     }
   }

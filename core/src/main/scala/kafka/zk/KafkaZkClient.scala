@@ -685,7 +685,7 @@ class KafkaZkClient private[zk] (zooKeeperClient: ZooKeeperClient, isSecure: Boo
   def getTopicPartitionCount(topic: String): Option[Int] = {
     val topicData = getReplicaAssignmentForTopics(Set(topic))
     if (topicData.nonEmpty)
-    // TODO: 返回topic的partition size 
+    // TODO: 返回topic的partition size
       Some(topicData.size)
     else
       None
@@ -774,7 +774,9 @@ class KafkaZkClient private[zk] (zooKeeperClient: ZooKeeperClient, isSecure: Boo
   def conditionalUpdatePath(path: String, data: Array[Byte], expectVersion: Int,
                             optionalChecker: Option[(KafkaZkClient, String, Array[Byte]) => (Boolean,Int)] = None): (Boolean, Int) = {
 
+    // TODO: 构建请求
     val setDataRequest = SetDataRequest(path, data, expectVersion)
+    // TODO: 发送请求并响应
     val setDataResponse = retryRequestUntilConnected(setDataRequest)
 
     setDataResponse.resultCode match {
