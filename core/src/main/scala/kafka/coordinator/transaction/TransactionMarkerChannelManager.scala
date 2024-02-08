@@ -46,19 +46,20 @@ object TransactionMarkerChannelManager {
             time: Time,
             logContext: LogContext): TransactionMarkerChannelManager = {
     val channelBuilder = ChannelBuilders.clientChannelBuilder(
-      config.interBrokerSecurityProtocol,
+      config.interBrokerSecurityProtocol, // TODO: PLAINTEXT(0, "PLAINTEXT")
       JaasContext.Type.SERVER,
       config,
-      config.interBrokerListenerName,
-      config.saslMechanismInterBrokerProtocol,
+      config.interBrokerListenerName, // TODO:  (ListenerName("PLAINTEXT")
+      config.saslMechanismInterBrokerProtocol, // TODO: PLAIN
       time,
-      config.saslInterBrokerHandshakeRequestEnable,
+      config.saslInterBrokerHandshakeRequestEnable, // TODO: true
       logContext
     )
     channelBuilder match {
       case reconfigurable: Reconfigurable => config.addReconfigurable(reconfigurable)
       case _ =>
     }
+    // TODO: 构建一个 Selector 实例
     val selector = new Selector(
       NetworkReceive.UNLIMITED,
       config.connectionsMaxIdleMs,
@@ -70,6 +71,7 @@ object TransactionMarkerChannelManager {
       channelBuilder,
       logContext
     )
+    // TODO: 构建一个 NetworkClient实例
     val networkClient = new NetworkClient(
       selector,
       new ManualMetadataUpdater(),
@@ -89,6 +91,7 @@ object TransactionMarkerChannelManager {
       logContext
     )
 
+    // TODO: 创建 TransactionMarkerChannelManager 实例
     new TransactionMarkerChannelManager(config,
       metadataCache,
       networkClient,

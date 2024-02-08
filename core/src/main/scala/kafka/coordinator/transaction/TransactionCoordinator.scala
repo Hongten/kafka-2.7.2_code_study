@@ -60,6 +60,7 @@ object TransactionCoordinator {
       time, metrics)
 
     val logContext = new LogContext(s"[TransactionCoordinator id=${config.brokerId}] ")
+    // TODO: 创建 TransactionMarkerChannelManager 实例
     val txnMarkerChannelManager = TransactionMarkerChannelManager(config, metrics, metadataCache, txnStateManager,
       time, logContext)
 
