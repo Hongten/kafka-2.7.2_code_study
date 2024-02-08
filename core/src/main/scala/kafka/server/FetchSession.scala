@@ -524,10 +524,12 @@ case class EvictableKey(privileged: Boolean, size: Int, id: Int) extends Compara
   * @param maxEntries The maximum number of entries that can be in the cache.
   * @param evictionMs The minimum time that an entry must be unused in order to be evictable.
   */
-class FetchSessionCache(private val maxEntries: Int,
-                        private val evictionMs: Long) extends Logging with KafkaMetricsGroup {
+class FetchSessionCache(private val maxEntries: Int, // todo 1000
+                        private val evictionMs: Long) // TODO: 120s
+  extends Logging with KafkaMetricsGroup {
   private var numPartitions: Long = 0
 
+  // TODO: session缓存
   // A map of session ID to FetchSession.
   private val sessions = new mutable.HashMap[Int, FetchSession]
 
@@ -538,6 +540,7 @@ class FetchSessionCache(private val maxEntries: Int,
   // unprivileged sessions.
   private val evictableByAll = new util.TreeMap[EvictableKey, FetchSession]
 
+  // TODO: 根据优先级可以踢出的FetchSession
   // A map containing sessions which can be evicted by privileged sessions.
   private val evictableByPrivileged = new util.TreeMap[EvictableKey, FetchSession]
 
@@ -605,9 +608,11 @@ class FetchSessionCache(private val maxEntries: Int,
     if ((sessions.size < maxEntries) ||
         tryEvict(privileged, EvictableKey(privileged, size, 0), now)) {
       val partitionMap = createPartitions()
+      // TODO: newSessionId() 会生产一个sessionId
       val session = new FetchSession(newSessionId(), privileged, partitionMap,
           now, now, JFetchMetadata.nextEpoch(INITIAL_EPOCH))
       debug(s"Created fetch session ${session.toString}")
+      // TODO: 把该session放入到sessions缓存里面
       sessions.put(session.id, session)
       touch(session, now)
       session.id

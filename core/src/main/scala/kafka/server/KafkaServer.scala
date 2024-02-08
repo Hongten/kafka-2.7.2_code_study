@@ -440,9 +440,10 @@ class KafkaServer(val config: KafkaConfig, time: Time = Time.SYSTEM, threadNameP
             }.toMap
         }
 
+        // TODO:  创建FetchManager实例
         val fetchManager = new FetchManager(Time.SYSTEM,
-          new FetchSessionCache(config.maxIncrementalFetchSessionCacheSlots,
-            KafkaServer.MIN_INCREMENTAL_FETCH_SESSION_EVICTION_MS))
+          new FetchSessionCache(config.maxIncrementalFetchSessionCacheSlots, // TODO: 1000
+            KafkaServer.MIN_INCREMENTAL_FETCH_SESSION_EVICTION_MS)) // TODO: 120s
 
         /* start processing requests */
         dataPlaneRequestProcessor = new KafkaApis(socketServer.dataPlaneRequestChannel, replicaManager, adminManager, groupCoordinator, transactionCoordinator,
