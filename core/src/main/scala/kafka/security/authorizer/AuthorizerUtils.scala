@@ -36,6 +36,7 @@ object AuthorizerUtils {
   @nowarn("cat=deprecation")
   def createAuthorizer(className: String): Authorizer = {
     Utils.newInstance(className, classOf[Object]) match {
+      // TODO: 我们所配置的 认证组件必须实现了 Authorizer，否则为无效的认证器
       case auth: Authorizer => auth
       case auth: kafka.security.auth.Authorizer => new AuthorizerWrapper(auth)
       case _ => throw new ConfigException(s"Authorizer does not implement ${classOf[Authorizer].getName} or ${classOf[LegacyAuthorizer].getName}.")

@@ -425,6 +425,7 @@ class KafkaServer(val config: KafkaConfig, time: Time = Time.SYSTEM, threadNameP
         //       5. 修改 isActive=true，表示启动完成
         transactionCoordinator.startup()
 
+        // TODO: 认证相关组件，默认是没有配置认证组件的
         /* Get the authorizer and initialize it if one is specified.*/
         authorizer = config.authorizer
         authorizer.foreach(_.configure(config.originals))

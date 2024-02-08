@@ -1458,10 +1458,13 @@ class KafkaConfig(val props: java.util.Map[_, _], doLog: Boolean, dynamicConfigO
 
   /************* Authorizer Configuration ***********/
   val authorizer: Option[Authorizer] = {
+    // TODO: 默认 authorizer.class.name='', 即没有配置认证，如果我们先开启kafka的ACL认证，则进行如下配置
+    // TODO: authorizer.class.name=kafka.security.authorizer.AclAuthorizer
     val className = getString(KafkaConfig.AuthorizerClassNameProp)
     if (className == null || className.isEmpty)
       None
     else {
+      // TODO:  根据配置的name，构建 Authorizer
       Some(AuthorizerUtils.createAuthorizer(className))
     }
   }
