@@ -34,7 +34,7 @@ object TransactionCoordinator {
 
   def apply(config: KafkaConfig,
             replicaManager: ReplicaManager,
-            scheduler: Scheduler,
+            scheduler: Scheduler, // TODO: new KafkaScheduler(threads = 1, threadNamePrefix = "transaction-log-manager-")
             zkClient: KafkaZkClient,
             metrics: Metrics,
             metadataCache: MetadataCache,
@@ -64,6 +64,7 @@ object TransactionCoordinator {
     val txnMarkerChannelManager = TransactionMarkerChannelManager(config, metrics, metadataCache, txnStateManager,
       time, logContext)
 
+    // TODO: 创建 TransactionCoordinator 实例
     new TransactionCoordinator(config.brokerId, txnConfig, scheduler, producerIdManager, txnStateManager, txnMarkerChannelManager,
       time, logContext)
   }
@@ -102,6 +103,7 @@ class TransactionCoordinator(brokerId: Int,
   type EndTxnCallback = Errors => Unit
   type ApiResult[T] = Either[Errors, T]
 
+  // TODO: 标识transactionCoordinator是否Active ,默认为false
   /* Active flag of the coordinator */
   private val isActive = new AtomicBoolean(false)
 
@@ -594,19 +596,30 @@ class TransactionCoordinator(brokerId: Int,
   /**
    * Startup logic executed at the same time when the server starts up.
    */
+  // TODO: 1. 启动scheduler线程
+  //       2. 往scheduler线程里面添加 transaction-abort 任务
+  //       3. 往scheduler线程里面添加 transactionalId-expiration 任务
+  //       4. 启动 txnMarkerChannelManager线程
+  //       5. 修改 isActive=true，表示启动完成
   def startup(enableTransactionalIdExpiration: Boolean = true): Unit = {
+    // TODO: transactionCoordinator开始启动
     info("Starting up.")
+    // TODO:  new KafkaScheduler(threads = 1, threadNamePrefix = "transaction-log-manager-") startup
     scheduler.startup()
     scheduler.schedule("transaction-abort",
       () => abortTimedOutTransactions(onEndTransactionComplete),
-      txnConfig.abortTimedOutTransactionsIntervalMs,
-      txnConfig.abortTimedOutTransactionsIntervalMs
+      txnConfig.abortTimedOutTransactionsIntervalMs, // TODO: 10s
+      txnConfig.abortTimedOutTransactionsIntervalMs  // TODO: 10s
     )
+    // todo enableTransactionalIdExpiration = true
     if (enableTransactionalIdExpiration)
       txnManager.enableTransactionalIdExpiration()
+    // TODO: 启动 txnMarkerChannelManager线程
     txnMarkerChannelManager.start()
+    // TODO: 标识transactionCoordinator是否Active ,默认为false，设置为true
     isActive.set(true)
 
+    // TODO: transactionCoordinator启动完成
     info("Startup complete.")
   }
 

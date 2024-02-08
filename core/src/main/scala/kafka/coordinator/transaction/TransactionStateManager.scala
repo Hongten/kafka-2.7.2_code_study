@@ -299,8 +299,8 @@ class TransactionStateManager(brokerId: Int,
     scheduler.schedule(
       name = "transactionalId-expiration",
       fun = removeExpiredTransactionalIds,
-      delay = config.removeExpiredTransactionalIdsIntervalMs,
-      period = config.removeExpiredTransactionalIdsIntervalMs
+      delay = config.removeExpiredTransactionalIdsIntervalMs, // TODO: 1h
+      period = config.removeExpiredTransactionalIdsIntervalMs // TODO: 1h
     )
   }
 

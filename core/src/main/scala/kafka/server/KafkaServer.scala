@@ -418,6 +418,11 @@ class KafkaServer(val config: KafkaConfig, time: Time = Time.SYSTEM, threadNameP
         // Hardcode Time.SYSTEM for now as some Streams tests fail otherwise, it would be good to fix the underlying issue
         // TODO: 创建事务coordinator实例 ，可以看到和groupCoordinator类似
         transactionCoordinator = TransactionCoordinator(config, replicaManager, new KafkaScheduler(threads = 1, threadNamePrefix = "transaction-log-manager-"), zkClient, metrics, metadataCache, Time.SYSTEM)
+        // TODO: 1. 启动scheduler线程
+        //       2. 往scheduler线程里面添加 transaction-abort 任务
+        //       3. 往scheduler线程里面添加 transactionalId-expiration 任务
+        //       4. 启动 txnMarkerChannelManager线程
+        //       5. 修改 isActive=true，表示启动完成
         transactionCoordinator.startup()
 
         /* Get the authorizer and initialize it if one is specified.*/
