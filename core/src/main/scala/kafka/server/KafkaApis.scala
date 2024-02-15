@@ -95,6 +95,7 @@ import kafka.coordinator.group.GroupOverview
 /**
  * Logic to handle the various Kafka requests
  */
+// TODO: 处理各类kafka请求的接口
 class KafkaApis(val requestChannel: RequestChannel,
                 val replicaManager: ReplicaManager,
                 val adminManager: AdminManager,
@@ -117,7 +118,9 @@ class KafkaApis(val requestChannel: RequestChannel,
                 val finalizedFeatureCache: FinalizedFeatureCache) extends ApiRequestHandler with Logging {
 
   type FetchResponseStats = Map[TopicPartition, RecordConversionStats]
+  // TODO: [KafkaApi-1001]
   this.logIdent = "[KafkaApi-%d] ".format(brokerId)
+  // TODO: 创建 AdminZkClient实例
   val adminZkClient = new AdminZkClient(zkClient)
   private val alterAclsPurgatory = new DelayedFuturePurgatory(purgatoryName = "AlterAcls", brokerId = config.brokerId)
 
@@ -129,6 +132,7 @@ class KafkaApis(val requestChannel: RequestChannel,
   /**
    * Top-level method that handles all requests and multiplexes to the right api
    */
+  // TODO: 实现 ApiRequestHandler里面的handle()方法
   override def handle(request: RequestChannel.Request): Unit = {
     try {
       trace(s"Handling request:${request.requestDesc(true)} from connection ${request.context.connectionId};" +

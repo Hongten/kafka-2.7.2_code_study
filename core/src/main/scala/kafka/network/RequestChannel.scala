@@ -388,6 +388,7 @@ class RequestChannel(val queueSize: Int,
 
   /** Get the next request or block until specified time has elapsed */
   def receiveRequest(timeout: Long): RequestChannel.BaseRequest =
+  // TODO: poll会获取到队列的头部元素，并且移除头部元素，如果队列为空，则返回null
     requestQueue.poll(timeout, TimeUnit.MILLISECONDS)
 
   /** Get the next request or block until there is one */

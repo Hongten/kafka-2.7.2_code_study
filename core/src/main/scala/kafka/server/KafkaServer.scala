@@ -445,11 +445,13 @@ class KafkaServer(val config: KafkaConfig, time: Time = Time.SYSTEM, threadNameP
           new FetchSessionCache(config.maxIncrementalFetchSessionCacheSlots, // TODO: 1000
             KafkaServer.MIN_INCREMENTAL_FETCH_SESSION_EVICTION_MS)) // TODO: 120s
 
+        // TODO: API接口类，用于处理数据类请求 ,创建KafkaApis实例,即所有的数据请求都会通过这个API类进行处理
         /* start processing requests */
         dataPlaneRequestProcessor = new KafkaApis(socketServer.dataPlaneRequestChannel, replicaManager, adminManager, groupCoordinator, transactionCoordinator,
           kafkaController, zkClient, config.brokerId, config, metadataCache, metrics, authorizer, quotaManagers,
           fetchManager, brokerTopicStats, clusterId, time, tokenManager, brokerFeatures, featureCache)
 
+        // TODO: 创建KafkaRequestHandlerPool实例 ， config.numIoThreads=8， SocketServer.DataPlaneThreadPrefix=data-plane
         dataPlaneRequestHandlerPool = new KafkaRequestHandlerPool(config.brokerId, socketServer.dataPlaneRequestChannel, dataPlaneRequestProcessor, time,
           config.numIoThreads, s"${SocketServer.DataPlaneMetricPrefix}RequestHandlerAvgIdlePercent", SocketServer.DataPlaneThreadPrefix)
 
