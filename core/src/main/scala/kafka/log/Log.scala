@@ -344,13 +344,16 @@ class Log(@volatile private var _dir: File,           // todo File(/mnt/ssd/1/ka
   }
 
   def updateConfig(newConfig: LogConfig): Unit = {
+    // TODO: 老的配置
     val oldConfig = this.config
+    // TODO: 新配置
     this.config = newConfig
     val oldRecordVersion = oldConfig.messageFormatVersion.recordVersion
     val newRecordVersion = newConfig.messageFormatVersion.recordVersion
     if (newRecordVersion.precedes(oldRecordVersion))
       warn(s"Record format version has been downgraded from $oldRecordVersion to $newRecordVersion.")
     if (newRecordVersion.value != oldRecordVersion.value)
+    // TODO: 初始化 LeaderEpochCache
       initializeLeaderEpochCache()
   }
 

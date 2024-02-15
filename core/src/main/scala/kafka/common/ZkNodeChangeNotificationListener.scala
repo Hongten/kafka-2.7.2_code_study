@@ -56,7 +56,9 @@ class ZkNodeChangeNotificationListener(private val zkClient: KafkaZkClient,
                                        private val changeExpirationMs: Long = 15 * 60 * 1000,
                                        private val time: Time = Time.SYSTEM) extends Logging {
   private var lastExecutedChange = -1L
+  // TODO: 存放变更通知的队列
   private val queue = new LinkedBlockingQueue[ChangeNotification]
+  // TODO: 创建ChangeEventProcessThread 实例
   private val thread = new ChangeEventProcessThread(s"$seqNodeRoot-event-process-thread")
   private val isClosed = new AtomicBoolean(false)
 
@@ -64,6 +66,7 @@ class ZkNodeChangeNotificationListener(private val zkClient: KafkaZkClient,
     zkClient.registerStateChangeHandler(ZkStateChangeHandler)
     zkClient.registerZNodeChildChangeHandler(ChangeNotificationHandler)
     addChangeNotification()
+    // TODO: 启动 ChangeEventProcessThread
     thread.start()
   }
 
@@ -87,6 +90,7 @@ class ZkNodeChangeNotificationListener(private val zkClient: KafkaZkClient,
         for (notification <- notifications) {
           val changeId = changeNumber(notification)
           if (changeId > lastExecutedChange) {
+            // TODO: 处理变更
             processNotification(notification)
             lastExecutedChange = changeId
           }
@@ -126,11 +130,21 @@ class ZkNodeChangeNotificationListener(private val zkClient: KafkaZkClient,
    * @param now
    * @param notifications
    */
+  // TODO: 清理过期zk节点
+  //  作用：
+  //     1. 大量无用的seqNode进行传输，会增加网络带宽负担
+  //     2. 占用zk服务端内存已经存储资源
+  //     3. kafka会做大量无效的判断和计算
+  //   清理方法：
+  //     1. 当broker监听到notification变化回调时，记录系统时间
+  //     2. 获取/config/changes下面所有的子节点，读取每个seqNode的创建时间
+  //     3. 系统时间减去节点创建时间如果超过了 changeExpirationMs=15mins（默认）即过期，就会被删除
   private def purgeObsoleteNotifications(now: Long, notifications: Seq[String]): Unit = {
     for (notification <- notifications.sorted) {
       val notificationNode = seqNodeRoot + "/" + notification
       val (data, stat) = zkClient.getDataAndStat(notificationNode)
       if (data.isDefined) {
+        // TODO: 如果超过了过期时间 15mins（默认），就会删除对应的zk节点
         if (now - stat.getCtime > changeExpirationMs) {
           debug(s"Purging change notification $notificationNode")
           zkClient.deletePath(notificationNode)
@@ -143,6 +157,7 @@ class ZkNodeChangeNotificationListener(private val zkClient: KafkaZkClient,
   private def changeNumber(name: String): Long = name.substring(seqNodePrefix.length).toLong
 
   class ChangeEventProcessThread(name: String) extends ShutdownableThread(name = name) {
+    // TODO: 从队列中获取到变更通知进行处理
     override def doWork(): Unit = queue.take().process()
   }
 

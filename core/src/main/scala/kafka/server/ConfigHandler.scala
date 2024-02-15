@@ -71,6 +71,7 @@ class TopicConfigHandler(private val logManager: LogManager, kafkaConfig: KafkaC
     // Validate the configurations.
     val configNamesToExclude = excludedConfigs(topic, topicConfig)
 
+    // TODO: 更新topic的配置
     updateLogConfig(topic, topicConfig, configNamesToExclude)
 
     def updateThrottledList(prop: String, quotaManager: ReplicationQuotaManager) = {
@@ -83,9 +84,13 @@ class TopicConfigHandler(private val logManager: LogManager, kafkaConfig: KafkaC
         debug(s"Removing $prop from broker ${kafkaConfig.brokerId} for topic $topic")
       }
     }
+    // TODO: quota配置
+    // TODO: LeaderReplicationThrottledReplicasProp = "leader.replication.throttled.replicas"
+    //       FollowerReplicationThrottledReplicasProp = "follower.replication.throttled.replicas"
     updateThrottledList(LogConfig.LeaderReplicationThrottledReplicasProp, quotas.leader)
     updateThrottledList(LogConfig.FollowerReplicationThrottledReplicasProp, quotas.follower)
 
+    // TODO: 开启脏选判断。 UncleanLeaderElectionEnableProp = "unclean.leader.election.enable"
     if (Try(topicConfig.getProperty(KafkaConfig.UncleanLeaderElectionEnableProp).toBoolean).getOrElse(false)) {
       kafkaController.enableTopicUncleanLeaderElection(topic)
     }
@@ -125,6 +130,10 @@ class TopicConfigHandler(private val logManager: LogManager, kafkaConfig: KafkaC
  */
 class QuotaConfigHandler(private val quotaManagers: QuotaManagers) {
 
+  // TODO:    val ProducerByteRateOverrideProp = "producer_byte_rate"
+  //    val ConsumerByteRateOverrideProp = "consumer_byte_rate"
+  //    val RequestPercentageOverrideProp = "request_percentage"
+  //    val ControllerMutationOverrideProp = "controller_mutation_rate"
   def updateQuotaConfig(sanitizedUser: Option[String], sanitizedClientId: Option[String], config: Properties): Unit = {
     val clientId = sanitizedClientId.map(Sanitizer.desanitize)
     val producerQuota =
@@ -160,6 +169,7 @@ class QuotaConfigHandler(private val quotaManagers: QuotaManagers) {
  */
 class ClientIdConfigHandler(private val quotaManagers: QuotaManagers) extends QuotaConfigHandler(quotaManagers) with ConfigHandler {
 
+  // TODO: 客户端Id配置主要是为了设置quota 
   def processConfigChanges(sanitizedClientId: String, clientConfig: Properties): Unit = {
     updateQuotaConfig(None, Some(sanitizedClientId), clientConfig)
   }
@@ -179,6 +189,7 @@ class UserConfigHandler(private val quotaManagers: QuotaManagers, val credential
       throw new IllegalArgumentException("Invalid quota entity path: " + quotaEntityPath)
     val sanitizedUser = entities(0)
     val sanitizedClientId = if (entities.length == 3) Some(entities(2)) else None
+    // TODO: 对于user的配置信息，也是更新quota 
     updateQuotaConfig(Some(sanitizedUser), sanitizedClientId, config)
     if (!sanitizedClientId.isDefined && sanitizedUser != ConfigEntityName.Default)
       credentialProvider.updateCredentials(Sanitizer.desanitize(sanitizedUser), config)
@@ -203,6 +214,7 @@ class BrokerConfigHandler(private val brokerConfig: KafkaConfig,
     if (brokerId == ConfigEntityName.Default)
       brokerConfig.dynamicConfig.updateDefaultConfig(properties)
     else if (brokerConfig.brokerId == brokerId.trim.toInt) {
+      // TODO: 更新broker配置信息 
       brokerConfig.dynamicConfig.updateBrokerConfig(brokerConfig.brokerId, properties)
       quotaManagers.leader.updateQuota(upperBound(getOrDefault(LeaderReplicationThrottledRateProp).toDouble))
       quotaManagers.follower.updateQuota(upperBound(getOrDefault(FollowerReplicationThrottledRateProp).toDouble))

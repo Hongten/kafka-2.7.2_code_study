@@ -388,11 +388,13 @@ object ConfigEntityZNode {
 }
 
 object ConfigEntityChangeNotificationZNode {
+  // TODO: /config/changes
   def path = s"${ConfigZNode.path}/changes"
 }
 
 object ConfigEntityChangeNotificationSequenceZNode {
   val SequenceNumberPrefix = "config_change_"
+  // TODO: /config/changes/config_change_
   def createPath = s"${ConfigEntityChangeNotificationZNode.path}/$SequenceNumberPrefix"
   def encode(sanitizedEntityPath: String): Array[Byte] = Json.encodeAsBytes(
     Map("version" -> 2, "entity_path" -> sanitizedEntityPath).asJava)

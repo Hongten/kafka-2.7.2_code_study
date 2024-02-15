@@ -468,17 +468,21 @@ class KafkaServer(val config: KafkaConfig, time: Time = Time.SYSTEM, threadNameP
 
         Mx4jLoader.maybeLoad()
 
+        // TODO: 动态配置
         /* Add all reconfigurables for config change notification before starting config handlers */
         config.dynamicConfig.addReconfigurables(this)
 
+        // TODO: 动态配置支持4种类型 topic, client, user, broker, 并且每一种类型对应单独的处理器器
         /* start dynamic config manager */
         dynamicConfigHandlers = Map[String, ConfigHandler](ConfigType.Topic -> new TopicConfigHandler(logManager, config, quotaManagers, kafkaController),
                                                            ConfigType.Client -> new ClientIdConfigHandler(quotaManagers),
                                                            ConfigType.User -> new UserConfigHandler(quotaManagers, credentialProvider),
                                                            ConfigType.Broker -> new BrokerConfigHandler(config, quotaManagers))
 
+        // TODO: 创建  DynamicConfigManager 实例
         // Create the config manager. start listening to notifications
         dynamicConfigManager = new DynamicConfigManager(zkClient, dynamicConfigHandlers)
+        // TODO: 调用startup方法，启动动态配置manager
         dynamicConfigManager.startup()
 
         socketServer.startProcessingRequests(authorizerFutures)

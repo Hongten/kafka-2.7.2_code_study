@@ -85,8 +85,9 @@ object ConfigEntityName {
  */
 class DynamicConfigManager(private val zkClient: KafkaZkClient,
                            private val configHandlers: Map[String, ConfigHandler],
-                           private val changeExpirationMs: Long = 15*60*1000,
+                           private val changeExpirationMs: Long = 15*60*1000, // TODO: 修改过期时间  15mins
                            private val time: Time = Time.SYSTEM) extends Logging {
+  // TODO: 创建 AdminZkClient实例，因为涉及到操作 zk
   val adminZkClient = new AdminZkClient(zkClient)
 
   object ConfigChangedNotificationHandler extends NotificationHandler {
@@ -109,6 +110,7 @@ class DynamicConfigManager(private val zkClient: KafkaZkClient,
     }
 
     private def processEntityConfigChangeVersion1(jsonBytes: Array[Byte], js: JsonObject): Unit = {
+      // TODO: 对于 version 1 ，只支持 topic，client（kafka版本0.8.1， 0.9.0.0）
       val validConfigTypes = Set(ConfigType.Topic, ConfigType.Client)
       val entityType = js.get("entity_type").flatMap(_.to[Option[String]]).filter(validConfigTypes).getOrElse {
         throw new IllegalArgumentException("Version 1 config change notification must have 'entity_type' set to " +
@@ -120,14 +122,18 @@ class DynamicConfigManager(private val zkClient: KafkaZkClient,
           s"Received: ${new String(jsonBytes, StandardCharsets.UTF_8)}")
       }
 
+      // TODO: 获取zk上面现有的配置
       val entityConfig = adminZkClient.fetchEntityConfig(entityType, entity)
       info(s"Processing override for entityType: $entityType, entity: $entity with config: $entityConfig")
+      // TODO: 由于 entityType只能是 topic, client， 所以处理器也会只有两种 TopicConfigHandler， ClientIdConfigHandler，
+      // TODO: 然后调用 处理器的 processConfigChanges方法
       configHandlers(entityType).processConfigChanges(entity, entityConfig)
 
     }
 
     private def processEntityConfigChangeVersion2(jsonBytes: Array[Byte], js: JsonObject): Unit = {
 
+      // TODO: 在version 2 中会支持4种类型的配置修改
       val entityPath = js.get("entity_path").flatMap(_.to[Option[String]]).getOrElse {
         throw new IllegalArgumentException(s"Version 2 config change notification must specify 'entity_path'. " +
           s"Received: ${new String(jsonBytes, StandardCharsets.UTF_8)}")
@@ -142,6 +148,7 @@ class DynamicConfigManager(private val zkClient: KafkaZkClient,
       }
       val fullSanitizedEntityName = entityPath.substring(index + 1)
 
+      // TODO: 获取到zk中的配置信息
       val entityConfig = adminZkClient.fetchEntityConfig(rootEntityType, fullSanitizedEntityName)
       val loggableConfig = entityConfig.asScala.map {
         case (k, v) => (k, if (ScramMechanism.isScram(k)) Password.HIDDEN else v)
@@ -152,6 +159,7 @@ class DynamicConfigManager(private val zkClient: KafkaZkClient,
     }
   }
 
+  // TODO: 创建 ZkNodeChangeNotificationListener 实例
   private val configChangeListener = new ZkNodeChangeNotificationListener(zkClient, ConfigEntityChangeNotificationZNode.path,
     ConfigEntityChangeNotificationSequenceZNode.SequenceNumberPrefix, ConfigChangedNotificationHandler)
 
@@ -159,6 +167,7 @@ class DynamicConfigManager(private val zkClient: KafkaZkClient,
    * Begin watching for config changes
    */
   def startup(): Unit = {
+    // TODO:  ZkNodeChangeNotificationListener 启动
     configChangeListener.init()
 
     // Apply all existing client/user configs to the ClientIdConfigHandler/UserConfigHandler to bootstrap the overrides

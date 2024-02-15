@@ -1206,6 +1206,7 @@ class LogManager(logDirs: Seq[File],
   def allLogs: Iterable[Log] = currentLogs.values ++ futureLogs.values
 
   def logsByTopic(topic: String): Seq[Log] = {
+    // TODO: 当前的log和 同一个broker，不同磁盘间的复制，就产生-future后缀的日志
     (currentLogs.toList ++ futureLogs.toList).collect {
       case (topicPartition, log) if topicPartition.topic == topic => log
     }
