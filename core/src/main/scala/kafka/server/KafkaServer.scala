@@ -485,6 +485,7 @@ class KafkaServer(val config: KafkaConfig, time: Time = Time.SYSTEM, threadNameP
         // TODO: 调用startup方法，启动动态配置manager
         dynamicConfigManager.startup()
 
+        // TODO: 开始启动控制流和数据流的 Processor， Acceptor ，这里开启以后，broker就可以开始处理各种请求了
         socketServer.startProcessingRequests(authorizerFutures)
 
         brokerState.newState(RunningAsBroker)

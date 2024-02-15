@@ -206,11 +206,16 @@ class SocketServer(val config: KafkaConfig,
    * @param authorizerFutures Future per [[EndPoint]] used to wait before starting the processor
    *                          corresponding to the [[EndPoint]]
    */
+  // TODO: 开启处理请求
   def startProcessingRequests(authorizerFutures: Map[Endpoint, CompletableFuture[Void]] = Map.empty): Unit = {
     info("Starting socket server acceptors and processors")
     this.synchronized {
+      // TODO: 是否开始处理请求标志，默认为false
       if (!startedProcessingRequests) {
+        // TODO: 这两个方法是否可以调换位置呢？ 看了一下初始化的时候，也是这样的顺序
+        // TODO: 开启control plane
         startControlPlaneProcessorAndAcceptor(authorizerFutures)
+        // TODO: 开启data plane
         startDataPlaneProcessorsAndAcceptors(authorizerFutures)
         startedProcessingRequests = true
       } else {
