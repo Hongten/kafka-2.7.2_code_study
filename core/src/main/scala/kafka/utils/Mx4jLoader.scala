@@ -34,6 +34,7 @@ object Mx4jLoader extends Logging {
 
   def maybeLoad(): Boolean = {
     val props = new VerifiableProperties(System.getProperties())
+    // TODO: 默认是关闭的状态
     if (!props.getBoolean("kafka_mx4jenable", false))
       return false
     val address = props.getString("mx4jaddress", "0.0.0.0")
